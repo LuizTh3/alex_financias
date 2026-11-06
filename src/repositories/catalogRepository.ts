@@ -3,7 +3,7 @@ import {
   type DocumentData, type Firestore, type Unsubscribe,
 } from 'firebase/firestore'
 import { cardSchema, categorySchema, type CardInput, type CatalogKind, type CategoryInput } from '../domain/catalog'
-import { db, personalUid } from '../lib/firebase'
+import { db } from '../lib/firebase'
 
 export type CatalogMetadata = { id: string; active: boolean; createdAt: Timestamp; updatedAt: Timestamp }
 export type CardRecord = CardInput & CatalogMetadata
@@ -16,7 +16,7 @@ export class CatalogConflictError extends Error {
   constructor() { super('Este cadastro foi alterado em outra aba. Feche e abra novamente para editar a versão atual.'); this.name = 'CatalogConflictError' }
 }
 function ownerDb(uid: string): Firestore {
-  if (!db || !personalUid || uid !== personalUid) throw new Error('Sua conta não tem acesso a estes cadastros.')
+  if (!db || !uid) throw new Error('Sua conta não tem acesso a estes cadastros.')
   return db
 }
 function parseRecord<K extends CatalogKind>(kind: K, id: string, data: DocumentData): CatalogRecords[K] {

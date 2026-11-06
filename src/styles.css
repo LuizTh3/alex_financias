@@ -109,3 +109,8 @@ button:disabled { cursor: not-allowed; }
 .invoice-timeline li { padding: .6rem 0 1rem; }
 .invoice-timeline strong { font-size: .85rem; }
 @media(max-width: 640px) { .invoice-filters { grid-template-columns: 1fr; } .invoice-card { padding: 1.2rem; } .invoice-actions > * { flex: 1; text-align: center; } }
+.dashboard-actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+.record-link { font-weight: 600; text-decoration: underline; text-underline-offset: .2rem; overflow-wrap: anywhere; }
+.skip-link { position: fixed; top: .5rem; left: .5rem; z-index: 100; transform: translateY(-200%); background: white; padding: .8rem; border-radius: .5rem; }
+.skip-link:focus { transform: translateY(0); }
+.page-content { flex: 1; min-width: 0; }

@@ -26,3 +26,10 @@ describe('recorrências mensais versionadas', () => {
     expect(fixedBlockSituation([{ paid: true }])).toBe('Pago')
   })
 })
+
+ it('projeta renda mensal e mantém compatibilidade com despesas antigas', () => {
+   const income = { ...base, type: 'income' as const, validUntil: null }
+   expect(occurrenceInput(income, '2026-11').type).toBe('income')
+   expect(occurrenceInput({ ...base, validUntil: null }, '2026-11').type).toBe('expense')
+   expect(projectRecurrences('2026-11', [{ id: 'rec' }], [income], [{ id: 'occ_rec_2026-11', firstCompetence: '2026-11' }])).toEqual([])
+ })

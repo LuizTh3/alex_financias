@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { browserSessionPersistence, onAuthStateChanged, setPersistence, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth'
-import { auth, personalUid } from '../lib/firebase'
+import { auth } from '../lib/firebase'
 
 type AuthState = { user: User | null; loading: boolean; error: string | null; login: (email: string, password: string) => Promise<void>; logout: () => Promise<void> }
 const AuthContext = createContext<AuthState | null>(null)
@@ -11,11 +11,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!auth) { setLoading(false); return }
     return onAuthStateChanged(auth, (current) => {
-      if (current && current.uid !== personalUid) {
-        setUser(null)
-        setError('Esta conta não tem acesso ao sistema.')
-        void signOut(auth!).catch(() => setError('Não foi possível encerrar a sessão.'))
-      } else { setUser(current) }
+      setUser(current)
       setLoading(false)
     }, () => { setError('Não foi possível verificar a sessão.'); setLoading(false) })
   }, [])
@@ -23,11 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!auth) throw new Error('Firebase indisponível.')
     setError(null)
     await setPersistence(auth, browserSessionPersistence)
-    const result = await signInWithEmailAndPassword(auth, email, password)
-    if (result.user.uid !== personalUid) {
-      await signOut(auth)
-      throw new Error('Esta conta não tem acesso ao sistema.')
-    }
+    await signInWithEmailAndPassword(auth, email, password)
   }
   async function logout() { if (auth) await signOut(auth) }
   return <AuthContext.Provider value={{ user, loading, error, login, logout }}>{children}</AuthContext.Provider>

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
 import { collection, doc, getDoc, getDocs, type Firestore } from 'firebase/firestore'
 const state = vi.hoisted(() => ({ db: null as Firestore | null }))
-vi.mock('../src/lib/firebase', () => ({ get db() { return state.db }, personalUid: 'Jhi9dIY92RbShnVhAVl5CaHuFJK2' }))
+vi.mock('../src/lib/firebase', () => ({ get db() { return state.db }, auth: { currentUser: { uid: 'Jhi9dIY92RbShnVhAVl5CaHuFJK2' } } }))
 import { CatalogConflictError, saveCatalog, setCatalogActive, type CardRecord } from '../src/repositories/catalogRepository'
 const owner = 'Jhi9dIY92RbShnVhAVl5CaHuFJK2'
 const card = { name: 'Pessoal', color: '#153f35', closingDay: 5, dueDay: 12 }

@@ -1,69 +1,66 @@
-import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router'
-import { useAuth } from '../contexts/AuthContext'
+import { accountBalance, projectCashFlow } from '../domain/cashFlow'
+import { todayCivil } from '../domain/calendar'
+import { useState } from 'react'
+import { Link, useLocation } from 'react-router'
 import { currentMonth, shiftMonth, formatMonth, formatMoney } from '../domain/finance'
-import { subscribeTo, type RecordOf } from '../repositories/financeRepository'
+import { useFinancialRecords } from '../hooks/useFinancialRecords'
 import { useRecurringMonth } from '../hooks/useRecurringMonth'
 import { projectRecurrences } from '../domain/recurrences'
 import { generateInstallments } from '../domain/entries'
 import { useCatalog } from '../hooks/useCatalog'
-import { buildCommitments, outstandingTotal, commitmentSituation } from '../domain/commitments'
+import { buildCommitments, commitmentSituation } from '../domain/commitments'
+import { summarizeDashboard } from '../domain/dashboard'
 
-// Consultas de lançamentos e cobranças persistidos; modelos recorrentes serão integrados em sua etapa.
 export function DashboardPage() {
-  const { user } = useAuth()
   const [month, setMonth] = useState(currentMonth)
-  const [entries, setEntries] = useState<RecordOf<'entries'>[]>([])
-  const [installments, setInstallments] = useState<RecordOf<'installments'>[]>([])
-  const [invoices, setInvoices] = useState<RecordOf<'invoices'>[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const { rows: cards, error: cardsError, loading: cardsLoading } = useCatalog('cards')
-  const { pathname } = useLocation()
+  const accounts = useFinancialRecords('accounts')
+  const movements = useFinancialRecords('accountMovements')
+  const entries = useFinancialRecords('entries')
+  const installments = useFinancialRecords('installments')
+  const invoices = useFinancialRecords('invoices')
+  const cards = useCatalog('cards')
   const recurring = useRecurringMonth(month)
-  useEffect(() => {
-    if (!user) return
-    const pending = new Set(['entries', 'installments', 'invoices'])
-    setLoading(true); setError(null)
-    const failed = () => { setError('Não foi possível carregar seus dados. Confira a conexão e as regras do Firestore.'); setLoading(false) }
-    const loaded = (name: string) => { pending.delete(name); if (!pending.size) setLoading(false) }
-    const stops = [
-      subscribeTo(user.uid, 'entries', rows => { setEntries(rows); loaded('entries') }, failed),
-      subscribeTo(user.uid, 'installments', rows => { setInstallments(rows); loaded('installments') }, failed),
-      subscribeTo(user.uid, 'invoices', rows => { setInvoices(rows); loaded('invoices') }, failed),
-    ]
-    return () => stops.forEach(stop => stop())
-  }, [user])
-  const titles: Record<string, string> = { '/': 'Visão geral', '/faturas': 'Faturas', '/despesas-fixas': 'Despesas fixas', '/a-receber': 'A receber', '/futuros': 'Compromissos futuros' }
-  const projected = pathname === '/futuros' ? Array.from({ length: 12 }, (_, index) => {
-    try { return projectRecurrences(shiftMonth(month, index + 1), recurring.roots.rows, recurring.versions.rows, recurring.allEntries.rows, cards) } catch { return [] }
-  }).flat() : []
+  const { pathname } = useLocation()
+  const future = pathname === '/futuros'
+  const sources = [accounts, movements, entries, installments, invoices, cards, recurring]
+  let projectionError: string | null = null
+  const projected = (() => {
+    if (!future || sources.some(source => source.loading || source.error)) return []
+    try {
+      return Array.from({ length: 13 }, (_, index) => projectRecurrences(
+        shiftMonth(future ? currentMonth() : month, index), recurring.roots.rows, recurring.versions.rows, recurring.allEntries.rows, cards.rows,
+      )).flat()
+    } catch { projectionError = 'Não foi possível calcular as projeções. Confira as recorrências cadastradas.'; return [] }
+  })()
   const projectedEntries = projected.map(item => ({ ...item.input, id: item.id }))
   const projectedParts = projected.flatMap(item => generateInstallments(item.id, item.input).map(part => ({ ...part, recurrenceId: item.recurrenceId, projected: true })))
-  const { charges, invoiceRows, outgoing, incoming, all } = buildCommitments([...entries, ...projectedEntries], [...installments, ...projectedParts], invoices, cards)
-  const items = pathname === '/faturas' ? invoiceRows : pathname === '/despesas-fixas' ? charges.filter(item => item.fixed && !item.income) : pathname === '/a-receber' ? incoming : all
-  const visible = items.filter(item => pathname === '/futuros' ? item.competence > month && !item.paid : item.competence === month).sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-  // A seleção é por competência de vencimento, não pela data da compra.
-  const total = (rows: typeof outgoing) => outstandingTotal(rows, month)
-  const failure = error || cardsError
-  const emptyText = pathname === '/despesas-fixas' ? 'Sem gastos neste mês' : pathname === '/faturas' ? 'Sem movimentação neste mês' : 'Nenhum compromisso neste período'
-  return <main className="workspace">
-    <header><div><p className="eyebrow">UM PASSO DE CADA VEZ</p><h1>{titles[pathname]}</h1></div>
-      <div className="month-picker"><button aria-label="Mês anterior" onClick={() => setMonth(shiftMonth(month, -1))}>←</button><span>{formatMonth(month)}</span><button aria-label="Próximo mês" onClick={() => setMonth(shiftMonth(month, 1))}>→</button></div>
+  const { all } = buildCommitments([...entries.rows, ...projectedEntries], [...installments.rows, ...projectedParts], invoices.rows, cards.rows)
+  const account = accounts.rows.find(row => row.id === 'main')
+  const balance = account ? accountBalance(account.openingCents, movements.rows.map(row => ({ ...row, reversesId: row.reversesId ?? undefined }))) : 0
+  const cashFlow = account && future ? projectCashFlow(balance, all, todayCivil()) : null
+  const summary = summarizeDashboard(all, future ? currentMonth() : month, future)
+  const failure = sources.find(source => source.error)?.error || projectionError
+  const loading = sources.some(source => source.loading)
+  const retry = () => sources.forEach(source => source.retry())
+  return <main id="main-content" className="workspace">
+    <header><div><p className="eyebrow">UM PASSO DE CADA VEZ</p><h1>{future ? 'Compromissos futuros' : 'Visão geral'}</h1></div>
+      {!future && <div className="month-picker" aria-label="Selecionar mês"><button aria-label="Mês anterior" onClick={() => setMonth(shiftMonth(month, -1))}>←</button><span aria-live="polite">{formatMonth(month)}</span><button aria-label="Próximo mês" onClick={() => setMonth(shiftMonth(month, 1))}>→</button></div>}
     </header>
-    <p className="muted mb-8">Acompanhe seus compromissos pelo mês de vencimento.</p>
-    {recurring.error && <p className="error mb-5" role="alert">{recurring.error}<button className="secondary ml-3" onClick={recurring.retry}>Tentar novamente</button></p>}
-    {pathname === '/futuros' && <p className="notice mb-5">Inclui projeções das recorrências para os próximos 12 meses. Projeções são estimativas; ocorrências já geradas preservam seus valores.</p>}
-    {failure && <p className="error mb-6" role="alert">{failure}</p>}
-    {loading || cardsLoading || recurring.loading ? <p role="status">Carregando seus dados…</p> : !failure && <>
-      <section className="stats">
-        <article><p>A receber no mês</p><strong>{formatMoney(total(incoming))}</strong><span>Recebimentos pendentes</span></article>
-        <article><p>A pagar no mês</p><strong>{formatMoney(total(outgoing))}</strong><span>Faturas e despesas pendentes</span></article>
-        <article className="highlight"><p>Saldo previsto dos compromissos</p><strong>{formatMoney(total(incoming) - total(outgoing))}</strong><span>Valores a receber menos valores a pagar</span></article>
+    <p className="muted mb-6">{future ? `De ${formatMonth(shiftMonth(currentMonth(), 1))} a ${formatMonth(shiftMonth(currentMonth(), 12))}.` : 'Acompanhe seus compromissos pelo mês de vencimento.'}</p>
+    <div className="dashboard-actions mb-6"><Link className="primary" to="/lancamentos">Ver lançamentos</Link><Link className="secondary" to="/a-receber">A receber</Link><Link className="secondary" to="/faturas">Ver faturas</Link><Link className="secondary" to={future ? '/' : '/futuros'}>{future ? 'Visão geral' : 'Próximos 12 meses'}</Link></div>
+    {future && <p className="notice mb-5">Inclui parcelas existentes e projeções das recorrências nos próximos 12 meses. Projeções são estimativas; ocorrências já geradas preservam seus valores.</p>}
+    {failure ? <div className="error mb-6" role="alert">{failure}<button className="secondary ml-3" onClick={retry}>Tentar novamente</button></div>
+      : loading ? <p role="status">Carregando seus dados.</p> : <>
+      <section className="panel p-6 mb-6"><h2>Saldo atual em conta</h2><strong>{account ? formatMoney(balance) : 'Conta não configurada'}</strong><p><Link className="record-link" to="/conta">{account ? 'Ver conta e movimentações' : 'Configurar saldo inicial'}</Link></p></section>
+      {cashFlow && <section className="panel p-6 mb-6"><h2>Saldo acumulado previsto a partir de hoje</h2><p className="muted">Inclui o restante do mês e pendências atrasadas. Valores por dia consideram todas as entradas e saídas desse dia; não representam a ordem intradiária.</p>{cashFlow.firstNegativeDate && <p className="error">Saldo previsto negativo em {cashFlow.firstNegativeDate.split('-').reverse().join('/')}</p>}<div className="installment-preview"><table><thead><tr><th>Mês</th><th>Inicial</th><th>Entradas</th><th>Saídas</th><th>Final previsto</th></tr></thead><tbody>{cashFlow.rows.map(row => <tr key={row.month}><td>{formatMonth(row.month)}</td><td>{formatMoney(row.opening)}</td><td>{formatMoney(row.incoming)}</td><td>{formatMoney(row.outgoing)}</td><td>{formatMoney(row.closing)}</td></tr>)}</tbody></table></div></section>}
+      <section className="stats" aria-label="Resumo financeiro">
+        <article><p>A receber {future ? 'no período' : 'no mês'}</p><strong>{formatMoney(summary.incoming)}</strong><span>Recebimentos pendentes</span></article>
+        <article><p>A pagar {future ? 'no período' : 'no mês'}</p><strong>{formatMoney(summary.outgoing)}</strong><span>Faturas e despesas pendentes</span></article>
+        <article className="highlight"><p>Saldo previsto dos compromissos</p><strong>{formatMoney(summary.balance)}</strong><span>Valores a receber menos valores a pagar; não representa saldo bancário</span></article>
       </section>
-      <section className="panel"><div className="panel-heading"><h2>{pathname === '/futuros' ? 'Após ' + formatMonth(month) : 'Compromissos do mês'}</h2><span className="badge">{visible.length} registros</span></div>
-        {visible.length ? <ul className="records">{visible.map(item => <li key={item.id}><div><strong>{item.description}</strong><p className="muted text-sm">{item.dueDate.split('-').reverse().join('/')} · {item.projected ? 'Projeção' : commitmentSituation(item)}</p></div><strong>{formatMoney(item.amountCents)}</strong></li>)}</ul>
-          : <div className="empty"><span className="empty-icon">◎</span><h3>{emptyText}</h3><p className="muted">Seus registros aparecerão aqui quando forem adicionados.</p></div>}
+      <section className="panel"><div className="panel-heading"><h2>{future ? 'Compromissos dos próximos 12 meses' : 'Compromissos do mês'}</h2><span className="badge">{summary.visible.length} registros</span></div>
+        {summary.visible.length ? <ul className="records">{summary.visible.map(item => <li key={item.id}><div><Link className="record-link" to={item.cardId ? '/faturas' : item.income ? '/a-receber' : item.fixed ? '/despesas-fixas' : '/lancamentos'}>{item.description}</Link><p className="muted text-sm">{item.dueDate.split('-').reverse().join('/')} · {item.income ? 'Entrada' : 'Saída'} · {item.projected ? 'Projeção' : commitmentSituation(item)}</p></div><strong>{formatMoney(item.amountCents)}</strong></li>)}</ul>
+          : <div className="empty"><h3>Nenhum compromisso neste período</h3><p className="muted">Cadastre despesas ou recebimentos em lançamentos, ou escolha outro mês.</p><Link className="secondary inline-block mt-5" to="/lancamentos">Ir para lançamentos</Link></div>}
       </section>
     </>}
   </main>

@@ -5,7 +5,7 @@ import { initializeApp, deleteApp, type App } from 'firebase-admin/app'
 import { getFirestore, Timestamp as AdminTimestamp, type Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { doc, getDoc, type Firestore } from 'firebase/firestore'
 const state = vi.hoisted(() => ({ db: null as Firestore | null }))
-vi.mock('../src/lib/firebase', () => ({ get db() { return state.db }, personalUid: 'Jhi9dIY92RbShnVhAVl5CaHuFJK2' }))
+vi.mock('../src/lib/firebase', () => ({ get db() { return state.db }, auth: { currentUser: { uid: 'Jhi9dIY92RbShnVhAVl5CaHuFJK2' } } }))
 import { changeInvoicePayment } from '../src/repositories/invoiceRepository'
 import { migrateInvoiceBalances } from '../scripts/migrate-invoice-balances.mjs'
 const uid = 'Jhi9dIY92RbShnVhAVl5CaHuFJK2'

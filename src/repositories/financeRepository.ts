@@ -1,10 +1,10 @@
 import { collection, onSnapshot, type Unsubscribe } from 'firebase/firestore'
-import { db, personalUid } from '../lib/firebase'
+import { db } from '../lib/firebase'
 import { financialSchemas as schemas, type FinancialCollection, type FinancialRecord } from './financialSchemas'
 export type CollectionName = FinancialCollection
 export type RecordOf<K extends CollectionName> = FinancialRecord<K>
 export function subscribeTo<K extends CollectionName>(uid: string, name: K, onData: (rows: RecordOf<K>[]) => void, onError: (error: Error) => void, options?: { includeDeleted?: boolean }): Unsubscribe {
-  if (!db || !personalUid || uid !== personalUid) {
+  if (!db || !uid) {
     onError(new Error('Acesso indisponível. Confira a configuração e a conta.'))
     return () => {}
   }

@@ -4,7 +4,7 @@ import { initializeTestEnvironment, assertFails, type RulesTestEnvironment } fro
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch, type Firestore } from 'firebase/firestore'
 import { generateInstallments, type EntryInput } from '../src/domain/entries'
 const state = vi.hoisted(() => ({ db: null as Firestore | null }))
-vi.mock('../src/lib/firebase', () => ({ get db() { return state.db }, personalUid: 'Jhi9dIY92RbShnVhAVl5CaHuFJK2' }))
+vi.mock('../src/lib/firebase', () => ({ get db() { return state.db }, auth: { currentUser: { uid: 'Jhi9dIY92RbShnVhAVl5CaHuFJK2' } } }))
 import { saveEntry, deleteEntry } from '../src/repositories/entryRepository'
 const uid = 'Jhi9dIY92RbShnVhAVl5CaHuFJK2'
 const input: EntryInput = { type: 'expense', description: 'Compra', totalCents: 10000, categoryId: 'expense', purchaseDate: '2026-01-10', paymentMethod: 'direct', cardId: null, installmentCount: 3, firstCompetence: '2026-02', dueDay: 31 }

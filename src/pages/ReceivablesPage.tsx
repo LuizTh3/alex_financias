@@ -1,3 +1,4 @@
+import { useRecurringMonth } from '../hooks/useRecurringMonth'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { currentMonth, shiftMonth, formatMonth, formatMoney, formatTimestamp } from '../domain/finance'
@@ -10,7 +11,8 @@ export function ReceivablesPage() {
   const entries = useFinancialRecords('entries')
   const parts = useFinancialRecords('installments')
   const events = useFinancialRecords('settlementEvents')
-  const sources = [entries, parts, events]
+  const recurring = useRecurringMonth(month)
+  const sources = [entries, parts, events, recurring]
   const entryMap = new Map(entries.rows.filter(entry => entry.type === 'income').map(entry => [entry.id, entry]))
   const visible = parts.rows.filter(part => entryMap.has(part.entryId) && !part.cardId && (all || part.competence === month)).sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.id.localeCompare(b.id))
   const failure = sources.find(source => source.error)?.error
@@ -20,7 +22,7 @@ export function ReceivablesPage() {
   const received = visible.filter(part => part.status === 'received').reduce((sum, part) => sum + part.amountCents, 0)
   const pending = visible.filter(part => part.status === 'pending').reduce((sum, part) => sum + part.amountCents, 0)
   return <main className="workspace"><header><div><p className="eyebrow">RECEBIMENTOS PARCELADOS</p><h1>A receber</h1></div><Link className="primary" to="/lancamentos?tipo=income">+ Novo recebimento</Link></header>
-    <p className="muted mb-6">Cada parcela tem seu próprio vencimento e confirmação, mantendo a soma do valor total.</p>
+    <p className="mb-4"><Link className="record-link" to="/despesas-fixas">Configurar renda mensal recorrente</Link></p><p className="muted mb-6">Cada parcela tem seu próprio vencimento e confirmação, mantendo a soma do valor total.</p>
     <div className="catalog-toolbar"><div className="month-picker"><button aria-label="Mês anterior" onClick={() => setMonth(shiftMonth(month, -1))}>←</button><span>{formatMonth(month)}</span><button aria-label="Próximo mês" onClick={() => setMonth(shiftMonth(month, 1))}>→</button></div><label className="checkbox-label"><input type="checkbox" checked={all} onChange={event => setAll(event.target.checked)} /> Todos os meses</label></div>
     {failure ? <div className="error" role="alert">{failure}<button className="secondary ml-3" onClick={() => sources.forEach(source => source.retry())}>Tentar novamente</button></div> : sources.some(source => source.loading) ? <p role="status">Carregando recebimentos…</p> : <>
       <section className="stats"><article><p>A receber</p><strong>{formatMoney(pending)}</strong><span>Parcelas pendentes</span></article><article><p>Recebido</p><strong>{formatMoney(received)}</strong><span>Confirmações vigentes</span></article><article className="highlight"><p>Total do período</p><strong>{formatMoney(pending + received)}</strong><span>{visible.length} parcela(s)</span></article></section>

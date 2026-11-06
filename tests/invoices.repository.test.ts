@@ -1,10 +1,11 @@
+import { initializeAccount } from '../src/repositories/accountRepository'
 import { readFileSync } from 'node:fs'
 import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from 'vitest'
 import { initializeTestEnvironment, assertFails, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch, Timestamp, type Firestore } from 'firebase/firestore'
 import type { EntryInput } from '../src/domain/entries'
 const state = vi.hoisted(() => ({ db: null as Firestore | null }))
-vi.mock('../src/lib/firebase', () => ({ get db() { return state.db }, personalUid: 'Jhi9dIY92RbShnVhAVl5CaHuFJK2' }))
+vi.mock('../src/lib/firebase', () => ({ get db() { return state.db }, auth: { currentUser: { uid: 'Jhi9dIY92RbShnVhAVl5CaHuFJK2' } } }))
 import { saveEntry, deleteEntry } from '../src/repositories/entryRepository'
 import { changeInvoicePayment, type InvoiceCommand } from '../src/repositories/invoiceRepository'
 const uid = 'Jhi9dIY92RbShnVhAVl5CaHuFJK2'
@@ -30,6 +31,16 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)('pagamento integral e hist
     return { invoiceId: key, mutationId, expectedRevision: invoice.revision, expectedTotalCents: invoice.totalCents, action }
   }
   async function docs(name: string) { return (await getDocs(collection(state.db!, `users/${uid}/${name}`))).docs }
+  it('desconta a fatura uma vez e devolve saldo ao reverter', async () => {
+    await initializeAccount(20000)
+    const pay = { ...await command(), affectAccount: true }
+    await changeInvoicePayment(uid, pay)
+    await changeInvoicePayment(uid, pay)
+    expect(await docs('accountMovements')).toHaveLength(1)
+    expect((await data('accountMovements', 'invoiceEvents_pay')).amountCents).toBe(-10000)
+    await changeInvoicePayment(uid, await command('reversal', 'undo'))
+    expect((await data('accountMovements', 'invoiceEvents_undo')).amountCents).toBe(10000)
+  })
   it('paga o valor integral e registra histórico sem criar outra despesa', async () => {
     await saveEntry(uid, { entryId: 'second', mutationId: 'second', expectedRevision: 0, input: { ...input, totalCents: 12345 } })
     const before = await data()

@@ -15,8 +15,7 @@ const config = z.object({
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 })
-export const personalUid = import.meta.env.VITE_PERSONAL_UID as string | undefined
-export const configurationError = !config.success || !personalUid
+export const configurationError = !config.success
   ? 'Configuração incompleta. Confira as variáveis do arquivo .env.' : null
 const app = config.success ? initializeApp(config.data) : null
 export const auth = app ? getAuth(app) : null

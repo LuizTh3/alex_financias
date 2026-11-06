@@ -12,7 +12,7 @@ import { newRecurrenceId, saveRecurrence, recurrenceErrorMessage } from '../repo
 import type { FinancialRecord } from '../repositories/financialSchemas'
 import type { CardRecord, CategoryRecord } from '../repositories/catalogRepository'
 import { Modal } from './Modal'
-const schema = z.object({ description: z.string(), amount: z.string(), categoryId: z.string(), paymentMethod: z.enum(['direct', 'card']), cardId: z.string(), dueDay: z.number(), effectiveFrom: competenceSchema }).transform((fields, context) => {
+const schema = z.object({ type: z.enum(['expense', 'income']), description: z.string(), amount: z.string(), categoryId: z.string(), paymentMethod: z.enum(['direct', 'card']), cardId: z.string(), dueDay: z.number(), effectiveFrom: competenceSchema }).transform((fields, context) => {
   let amountCents = 0
   try { amountCents = parseMoneyToCents(fields.amount) } catch (error) { context.addIssue({ code: 'custom', path: ['amount'], message: error instanceof Error ? error.message : 'Valor inválido.' }) }
   const { amount: _, effectiveFrom, ...rest } = fields
@@ -28,9 +28,10 @@ export function RecurrenceForm({ root, previous, categories, cards, initialMonth
   const [error, setError] = useState<string | null>(null)
   const minimum = root ? [currentMonth(), root.latestFrom].sort().at(-1)! : '1900-01'
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<z.input<typeof schema>, unknown, { input: RecurrenceInput; effectiveFrom: string }>({
-    resolver: zodResolver(schema), defaultValues: previous ? { description: previous.description, amount: `${Math.floor(previous.amountCents / 100)},${String(previous.amountCents % 100).padStart(2, '0')}`, categoryId: previous.categoryId, paymentMethod: previous.paymentMethod, cardId: previous.cardId ?? '', dueDay: previous.dueDay, effectiveFrom: minimum }
-      : { description: '', amount: '', categoryId: '', paymentMethod: 'direct', cardId: '', dueDay: 10, effectiveFrom: initialMonth },
+    resolver: zodResolver(schema), defaultValues: previous ? { type: previous.type ?? 'expense', description: previous.description, amount: `${Math.floor(previous.amountCents / 100)},${String(previous.amountCents % 100).padStart(2, '0')}`, categoryId: previous.categoryId, paymentMethod: previous.paymentMethod, cardId: previous.cardId ?? '', dueDay: previous.dueDay, effectiveFrom: minimum }
+      : { type: 'expense', description: '', amount: '', categoryId: '', paymentMethod: 'direct', cardId: '', dueDay: 10, effectiveFrom: initialMonth },
   })
+  const kind = watch('type')
   const selectedCard = watch('cardId'); const method = watch('paymentMethod')
   useEffect(() => {
     const card = cards.find(item => item.id === selectedCard)
@@ -47,10 +48,11 @@ export function RecurrenceForm({ root, previous, categories, cards, initialMonth
       finally { locked.current = false }
     })}>
       <fieldset disabled={isSubmitting}>
+        <label htmlFor="rec-type">Tipo</label><select id="rec-type" disabled={!!root} {...register('type')} onChange={event => { setValue('type', event.target.value as 'income' | 'expense'); setValue('categoryId', ''); setValue('paymentMethod', 'direct'); setValue('cardId', '') }}><option value="expense">Despesa mensal</option><option value="income">Renda mensal líquida</option></select>
         <label htmlFor="rec-description">Descrição</label><input id="rec-description" autoFocus maxLength={240} {...register('description')} />
         <div className="form-grid"><div><label htmlFor="rec-amount">Valor mensal (R$)</label><input id="rec-amount" inputMode="decimal" {...register('amount')} /></div><div><label htmlFor="rec-from">Início da vigência</label><input id="rec-from" type="month" min={minimum} max="9999-12" {...register('effectiveFrom')} /></div></div>
-        <label htmlFor="rec-category">Categoria de despesas</label><select id="rec-category" {...register('categoryId')}><option value="">Selecione…</option>{categories.filter(category => category.id === previous?.categoryId || category.active && ['expense', 'both'].includes(category.scope)).map(category => <option key={category.id} value={category.id}>{category.name}{category.active ? '' : ' (arquivada)'}</option>)}</select>
-        <label htmlFor="rec-method">Forma de pagamento</label><select id="rec-method" {...register('paymentMethod')}><option value="direct">Pagamento direto</option><option value="card">Cobrança em cartão</option></select>
+        <label htmlFor="rec-category">Categoria</label><select id="rec-category" {...register('categoryId')}><option value="">Selecione…</option>{categories.filter(category => category.id === previous?.categoryId || category.active && [kind, 'both'].includes(category.scope)).map(category => <option key={category.id} value={category.id}>{category.name}{category.active ? '' : ' (arquivada)'}</option>)}</select>
+        <label htmlFor="rec-method">Forma de pagamento</label><select id="rec-method" {...register('paymentMethod')}><option value="direct">Pagamento direto</option>{kind === 'expense' && <option value="card">Cobrança em cartão</option>}</select>
         {method === 'card' && <><label htmlFor="rec-card">Cartão</label><select id="rec-card" {...register('cardId')}><option value="">Selecione…</option>{cards.filter(card => card.active || card.id === previous?.cardId).map(card => <option key={card.id} value={card.id}>{card.name}{card.active ? '' : ' (arquivado)'}</option>)}</select><p className="muted text-sm mt-3">As novas faturas usam o vencimento padrão atual do cartão. Faturas existentes preservam seu vencimento.</p></>}
         <label htmlFor="rec-day">Dia padrão de vencimento</label><input id="rec-day" type="number" min={1} max={31} readOnly={method === 'card'} {...register('dueDay', { valueAsNumber: true })} />
         <p className="notice mt-5">Recorrência mensal. Dias 29, 30 e 31 ajustam ao último dia válido. Ocorrências já geradas, inclusive pendentes e personalizadas, serão preservadas. Esta versão afeta apenas competências ainda não geradas.</p>

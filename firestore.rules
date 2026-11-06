@@ -4,7 +4,6 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function isOwner(userId) {
       return request.auth != null
-        && request.auth.uid == 'Jhi9dIY92RbShnVhAVl5CaHuFJK2'
         && request.auth.uid == userId;
     }
     function validName(name) {
@@ -227,7 +226,7 @@ service cloud.firestore {
     }
     function eventShape(data) {
       return data.keys().hasAll(['invoiceId', 'cardId', 'competence', 'dueDate', 'type', 'amountCents', 'invoiceRevision', 'paymentEventId', 'paidAt', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['invoiceId', 'cardId', 'competence', 'dueDate', 'type', 'amountCents', 'invoiceRevision', 'paymentEventId', 'paidAt', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['affectAccount', 'invoiceId', 'cardId', 'competence', 'dueDate', 'type', 'amountCents', 'invoiceRevision', 'paymentEventId', 'paidAt', 'createdAt', 'updatedAt'])
         && data.type in ['payment', 'reversal'] && data.amountCents is int && data.amountCents > 0
         && data.amountCents <= 999999999999 && data.invoiceRevision is int
         && validId(data.paymentEventId) && data.paidAt is timestamp
@@ -235,7 +234,7 @@ service cloud.firestore {
     }
     function eventMatches(userId, invoiceKey, eventId, before, after) {
       let event = getAfter(/databases/$(database)/documents/users/$(userId)/invoiceEvents/$(eventId)).data;
-      return eventShape(event) && event.invoiceId == invoiceKey && event.cardId == before.cardId
+      return accountEffect(userId, 'invoiceEvents', eventId, event, event.paymentEventId) && eventShape(event) && event.invoiceId == invoiceKey && event.cardId == before.cardId
         && event.competence == before.competence && event.dueDate == before.dueDate
         && event.invoiceRevision == after.revision
         && (before.status == 'pending'
@@ -289,7 +288,8 @@ service cloud.firestore {
     }
     function versionShape(data) {
       return data.keys().hasAll(['recurrenceId', 'revision', 'effectiveFrom', 'validUntil', 'description', 'amountCents', 'categoryId', 'paymentMethod', 'cardId', 'dueDay', 'action', 'active', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['recurrenceId', 'revision', 'effectiveFrom', 'validUntil', 'description', 'amountCents', 'categoryId', 'paymentMethod', 'cardId', 'dueDay', 'action', 'active', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['type', 'recurrenceId', 'revision', 'effectiveFrom', 'validUntil', 'description', 'amountCents', 'categoryId', 'paymentMethod', 'cardId', 'dueDay', 'action', 'active', 'createdAt', 'updatedAt'])
+        && data.get('type', 'expense') in ['expense', 'income'] && (data.get('type', 'expense') != 'income' || data.paymentMethod == 'direct')
         && recurrenceIdValid(data.recurrenceId) && data.revision is int && data.revision >= 1
         && validMonth(data.effectiveFrom) && (data.validUntil == null || validMonth(data.validUntil) && data.validUntil >= data.effectiveFrom)
         && data.description is string && data.description.size() >= 1 && data.description.size() <= 240
@@ -329,7 +329,8 @@ service cloud.firestore {
         : get(/databases/$(database)/documents/users/$(userId)/recurrenceVersions/$(previousId)).data;
       return root.latestVersionId == data.recurrenceId + '__' + string(data.revision) && root.updatedAt == request.time
         && root.latestFrom == data.effectiveFrom && root.revision == data.revision
-        && (data.categoryId == previous.categoryId || categoryReference(userId, {'categoryId': data.categoryId, 'type': 'expense'}))
+        && (data.revision == 1 || data.get('type', 'expense') == previous.get('type', 'expense'))
+        && (data.categoryId == previous.categoryId || categoryReference(userId, {'categoryId': data.categoryId, 'type': data.get('type', 'expense')}))
         && (data.cardId == null || (data.cardId == previous.cardId ? (data.action == 'configure' ? data.dueDay == get(/databases/$(database)/documents/users/$(userId)/cards/$(data.cardId)).data.dueDay : data.dueDay == previous.dueDay) : cardReference(userId, data)))
         && (data.action == 'configure' || data.revision > 1 && data.description == previous.description && data.amountCents == previous.amountCents
           && data.categoryId == previous.categoryId && data.paymentMethod == previous.paymentMethod && data.cardId == previous.cardId && data.dueDay == previous.dueDay);
@@ -356,7 +357,7 @@ service cloud.firestore {
       return version.active == true && version.recurrenceId == data.recurrenceId
         && entryId == 'occ_' + data.recurrenceId + '_' + data.firstCompetence
         && data.firstCompetence >= version.effectiveFrom && (version.validUntil == null || data.firstCompetence < version.validUntil)
-        && data.type == 'expense' && data.installmentCount == 1 && data.purchaseDate == civilDate(data.firstCompetence, 1)
+        && data.type == version.get('type', 'expense') && data.installmentCount == 1 && data.purchaseDate == civilDate(data.firstCompetence, 1)
         && data.description == version.description && data.totalCents == version.amountCents && data.categoryId == version.categoryId
         && data.paymentMethod == version.paymentMethod && data.cardId == version.cardId
         && (data.cardId == null ? data.dueDay == version.dueDay : data.dueDay == get(/databases/$(database)/documents/users/$(userId)/cards/$(data.cardId)).data.dueDay);
@@ -369,19 +370,19 @@ service cloud.firestore {
     function sameOccurrence(data, before) {
       return data.get('recurrenceId', null) == before.get('recurrenceId', null)
         && data.get('recurrenceVersionId', null) == before.get('recurrenceVersionId', null)
-        && (before.get('recurrenceId', null) == null || data.type == 'expense' && data.installmentCount == 1
+        && (before.get('recurrenceId', null) == null || data.type == before.type && data.installmentCount == 1
           && data.firstCompetence == before.firstCompetence && data.purchaseDate == before.purchaseDate);
     }
     function settlementEventShape(data) {
       return data.keys().hasAll(['installmentId', 'entryId', 'entryRevision', 'type', 'amountCents', 'dueDate', 'settlementRevision', 'confirmationEventId', 'confirmedAt', 'description', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['installmentId', 'entryId', 'entryRevision', 'type', 'amountCents', 'dueDate', 'settlementRevision', 'confirmationEventId', 'confirmedAt', 'description', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['affectAccount', 'installmentId', 'entryId', 'entryRevision', 'type', 'amountCents', 'dueDate', 'settlementRevision', 'confirmationEventId', 'confirmedAt', 'description', 'createdAt', 'updatedAt'])
         && data.type in ['payment', 'receipt', 'reversal'] && data.amountCents is int && data.amountCents > 0
         && data.settlementRevision is int && data.entryRevision is int && validId(data.entryId) && validId(data.confirmationEventId)
         && data.confirmedAt is timestamp && data.createdAt == request.time && data.updatedAt == request.time;
     }
     function settlementEventMatches(userId, partId, eventId, before, after, entry) {
       let event = getAfter(/databases/$(database)/documents/users/$(userId)/settlementEvents/$(eventId)).data;
-      return settlementEventShape(event) && event.installmentId == partId && event.entryId == before.entryId
+      return accountEffect(userId, 'settlementEvents', eventId, event, event.confirmationEventId) && settlementEventShape(event) && event.installmentId == partId && event.entryId == before.entryId
         && event.entryRevision == before.revision && event.amountCents == before.amountCents && event.dueDate == before.dueDate
         && event.description == entry.description && event.settlementRevision == after.settlementRevision
         && (before.status == 'pending' ? event.type == (entry.type == 'income' ? 'receipt' : 'payment')
@@ -417,6 +418,46 @@ service cloud.firestore {
         && after.settlementRevision == before.get('settlementRevision', 0) + 1
         && (event.type == 'reversal' ? after.status == 'pending' && before.status != 'pending' : before.status == 'pending' && after.status != 'pending')
         && settlementEventMatches(userId, event.installmentId, eventId, before, after, entry);
+    }
+
+    function accountEffect(userId, source, id, event, original) {
+      let movementId = source + '_' + id;
+      let originalId = source + '_' + original;
+      let needed = event.type == 'reversal' ? exists(/databases/$(database)/documents/users/$(userId)/accountMovements/$(originalId)) : event.get('affectAccount', false);
+      return event.get('affectAccount', false) is bool && (needed
+        ? existsAfter(/databases/$(database)/documents/users/$(userId)/accountMovements/$(movementId))
+        : !existsAfter(/databases/$(database)/documents/users/$(userId)/accountMovements/$(movementId)));
+    }
+    function cashShape(data) {
+      return data.keys().hasOnly(['amountCents', 'date', 'source', 'sourceId', 'description', 'reversesId', 'createdAt', 'updatedAt'])
+        && data.amountCents is int && data.amountCents >= -999999999 && data.amountCents <= 999999999
+        && data.date == civilDate(localMonth(), (request.time - duration.value(5, 'h')).day())
+        && data.description is string && data.description.size() > 0 && data.description.size() <= 240
+        && data.createdAt == request.time && data.updatedAt == request.time;
+    }
+    function cashEvent(userId, id, data) {
+      let event = getAfter(/databases/$(database)/documents/users/$(userId)/$(data.source)/$(data.sourceId)).data;
+      let originalId = data.source + '_' + (data.source == 'settlementEvents' ? event.confirmationEventId : event.paymentEventId);
+      return id == data.source + '_' + data.sourceId && event.createdAt == request.time
+        && (event.type == 'reversal'
+          ? data.reversesId == originalId && data.amountCents == -get(/databases/$(database)/documents/users/$(userId)/accountMovements/$(originalId)).data.amountCents
+          : data.reversesId == null && data.amountCents == (event.type == 'receipt' ? event.amountCents : -event.amountCents));
+    }
+    match /users/{userId}/accounts/{id} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && id == 'main'
+        && request.resource.data.keys().hasOnly(['openingCents', 'startDate', 'createdAt', 'updatedAt'])
+        && request.resource.data.openingCents is int && request.resource.data.openingCents >= -999999999 && request.resource.data.openingCents <= 999999999
+        && request.resource.data.startDate == civilDate(localMonth(), (request.time - duration.value(5, 'h')).day())
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+    }
+    match /users/{userId}/accountMovements/{id} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && exists(/databases/$(database)/documents/users/$(userId)/accounts/main)
+        && cashShape(request.resource.data)
+        && (request.resource.data.source == 'adjustment'
+          ? validId(id) && request.resource.data.sourceId == id && request.resource.data.reversesId == null && request.resource.data.amountCents != 0
+          : request.resource.data.source in ['settlementEvents', 'invoiceEvents'] && cashEvent(userId, id, request.resource.data));
     }
     match /{document=**} {
       allow read, write: if false;

@@ -1,6 +1,6 @@
 import { collection, doc, getDocFromServer, runTransaction, serverTimestamp } from 'firebase/firestore'
 import { z } from 'zod'
-import { db, personalUid } from '../lib/firebase'
+import { db } from '../lib/firebase'
 import { currentMonth } from '../domain/finance'
 import { competenceSchema } from '../domain/calendar'
 import { recurrenceInputSchema, recurrenceVersionId, occurrenceEntryId, occurrenceInput, type RecurrenceInput } from '../domain/recurrences'
@@ -10,7 +10,7 @@ export class RecurrenceError extends Error {}
 export type RecurrenceCommand = { id: string; mutationId: string; expectedRevision: number; effectiveFrom: string; action: 'configure' | 'pause' | 'end'; input?: RecurrenceInput }
 const idSchema = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/)
 function ownerDb(uid: string) {
-  if (!db || uid !== personalUid) throw new RecurrenceError('Conta sem acesso às recorrências.')
+  if (!db || !uid) throw new RecurrenceError('Conta sem acesso às recorrências.')
   return db
 }
 export const newRecurrenceId = (uid: string) => doc(collection(ownerDb(uid), 'users', uid, 'recurrences')).id
@@ -41,11 +41,12 @@ export async function saveRecurrence(uid: string, command: RecurrenceCommand) {
       if (current?.state === 'ended') throw new RecurrenceError('Uma recorrência encerrada não pode ser retomada. Crie outra.')
       if (current && (!previous || previous.validUntil !== null || command.effectiveFrom < current.latestFrom || command.effectiveFrom < currentMonth())) throw new RecurrenceError('A nova vigência deve começar no mês atual ou futuro, sem alterar versões anteriores.')
       if (!current && command.action !== 'configure') throw new RecurrenceError('Cadastre a recorrência antes de pausar ou encerrar.')
-      const value = command.action === 'configure' ? input : previous ? recurrenceInputSchema.parse({ description: previous.description, amountCents: previous.amountCents, categoryId: previous.categoryId, paymentMethod: previous.paymentMethod, cardId: previous.cardId, dueDay: previous.dueDay }) : null
+      const value = command.action === 'configure' ? input : previous ? recurrenceInputSchema.parse({ ...(previous.type ? { type: previous.type } : {}), description: previous.description, amountCents: previous.amountCents, categoryId: previous.categoryId, paymentMethod: previous.paymentMethod, cardId: previous.cardId, dueDay: previous.dueDay }) : null
       if (!value) throw new RecurrenceError('Informe os dados da recorrência.')
+      if (previous && (value.type ?? 'expense') !== (previous.type ?? 'expense')) throw new RecurrenceError('O tipo da recorrência não pode ser alterado.')
       if (!previous || value.categoryId !== previous.categoryId) {
         const category = await transaction.get(doc(database, 'users', uid, 'categories', value.categoryId))
-        if (!category.exists() || category.data().active !== true || !['expense', 'both'].includes(category.data().scope)) throw new RecurrenceError('Selecione uma categoria ativa de despesas.')
+        if (!category.exists() || category.data().active !== true || ![value.type ?? 'expense', 'both'].includes(category.data().scope)) throw new RecurrenceError('Selecione uma categoria ativa de despesas.')
       }
       if (value.cardId && (!previous || previous.cardId !== value.cardId)) {
         const card = await transaction.get(doc(database, 'users', uid, 'cards', value.cardId))

@@ -98,6 +98,7 @@ export function InvoicesPage() {
       <div className="modal-actions"><button className="secondary" onClick={() => setDetailId(null)}>Fechar</button></div>
     </Modal>}
     {confirmation && <Modal title={confirmation.command.action === 'payment' ? 'Confirmar pagamento integral?' : 'Desfazer pagamento?'} busy={saving} onClose={() => setConfirmation(null)}>
+      {confirmation.command.action === 'payment' && <label className="checkbox-label"><input type="checkbox" disabled={saving} checked={confirmation.command.affectAccount ?? false} onChange={event => setConfirmation({ ...confirmation, command: { ...confirmation.command, affectAccount: event.target.checked } })} />Descontar de Minha conta</label>}
       <p className="mt-5"><strong>{confirmation.name}</strong> · Vencimento em {dateLabel(confirmation.dueDate)}</p><p className="invoice-total">{formatMoney(confirmation.command.expectedTotalCents)}</p>
       <p className="muted">{confirmation.command.action === 'payment' ? 'Confirme apenas se você já pagou a fatura integralmente. A confirmação liquida estas cobranças e preserva o valor pago no histórico.' : 'A fatura voltará a ficar pendente e suas cobranças poderão ser alteradas. A confirmação original será mantida no histórico junto com esta reversão.'}</p>
       {confirmationStale && <p className="error" role="alert">A fatura mudou. Feche esta confirmação e confira os dados atualizados.</p>}

@@ -2,7 +2,7 @@ import { collection, doc, getDocFromServer, runTransaction, serverTimestamp, Tim
 import { z } from 'zod'
 import { occurrenceInput, occurrenceEntryId } from '../domain/recurrences'
 import { applyInvoiceDelta } from '../domain/invoices'
-import { db, personalUid } from '../lib/firebase'
+import { db } from '../lib/firebase'
 import { cardSchema, categorySchema } from '../domain/catalog'
 import { entryInputSchema, generateInstallments, installmentId, invoiceId, sameEntryInput, type EntryInput } from '../domain/entries'
 import { financialSchemas, type FinancialRecord } from './financialSchemas'
@@ -11,7 +11,7 @@ export class FinancialError extends Error {}
 export type SaveEntryCommand = { entryId: string; mutationId: string; input: EntryInput; expectedRevision: number; recurrence?: { id: string; versionId: string } }
 const identifier = z.string().regex(/^[A-Za-z0-9_-]{1,80}$/)
 function ownerDb(uid: string): Firestore {
-  if (!db || !personalUid || uid !== personalUid) throw new FinancialError('Conta sem acesso ao motor financeiro.')
+  if (!db || !uid) throw new FinancialError('Conta sem acesso ao motor financeiro.')
   return db
 }
 const conflict = () => new FinancialError('O lançamento foi alterado em outra aba. Reabra os dados antes de continuar.')
@@ -79,7 +79,7 @@ export async function saveEntry(uid: string, command: SaveEntryCommand): Promise
     if ((current?.revision ?? 0) !== command.expectedRevision) throw conflict()
     const revision = (current?.revision ?? 0) + 1
     // Todas as leituras ocorrem antes de qualquer escrita da transação.
-    if (current?.recurrenceId && (input.type !== 'expense' || input.installmentCount !== 1
+    if (current?.recurrenceId && (input.type !== current.type || input.installmentCount !== 1
       || input.firstCompetence !== current.firstCompetence || input.purchaseDate !== current.purchaseDate)) throw new FinancialError('Uma ocorrência mantém sua competência e tem uma única cobrança.')
     if (!current && command.recurrence) {
       const versionSnapshot = await transaction.get(doc(database, 'users', uid, 'recurrenceVersions', command.recurrence.versionId))

@@ -3,12 +3,14 @@ import { competenceSchema, dueDateInMonth } from './calendar'
 import { MAX_TOTAL_CENTS } from './money'
 import type { EntryInput } from './entries'
 export const recurrenceInputSchema = z.object({
+  type: z.enum(['expense', 'income']).optional(),
   description: z.string().trim().min(1, 'Informe a descrição.').max(240),
   amountCents: z.number().int().min(1).max(MAX_TOTAL_CENTS),
   categoryId: z.string().regex(/^[A-Za-z0-9_-]{1,80}$/),
   paymentMethod: z.enum(['direct', 'card']), cardId: z.string().regex(/^[A-Za-z0-9_-]{1,80}$/).nullable(),
   dueDay: z.number().int().min(1).max(31),
 }).strict().superRefine((value, context) => {
+  if (value.type === 'income' && value.paymentMethod !== 'direct') context.addIssue({ code: 'custom', path: ['paymentMethod'], message: 'Renda deve ser recebida diretamente.' })
   if ((value.paymentMethod === 'card') !== !!value.cardId) context.addIssue({ code: 'custom', path: ['cardId'], message: 'Selecione um cartão para cobrança em cartão; pagamento direto não usa cartão.' })
 })
 export type RecurrenceInput = z.infer<typeof recurrenceInputSchema>
@@ -25,7 +27,7 @@ export function versionForMonth(versions: RecurrenceVersion[], recurrenceId: str
 }
 export function occurrenceInput(version: RecurrenceVersion, competence: string, cardDueDay = version.dueDay): EntryInput {
   if (!version.active || version.effectiveFrom > competence || (version.validUntil && competence >= version.validUntil)) throw new Error('A recorrência não está vigente nesta competência.')
-  return { type: 'expense', description: version.description, totalCents: version.amountCents, categoryId: version.categoryId,
+  return { type: version.type ?? 'expense', description: version.description, totalCents: version.amountCents, categoryId: version.categoryId,
     purchaseDate: dueDateInMonth(competence, 1), paymentMethod: version.paymentMethod, cardId: version.cardId,
     installmentCount: 1, firstCompetence: competence, dueDay: version.cardId ? cardDueDay : version.dueDay }
 }

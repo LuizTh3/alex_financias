@@ -7,6 +7,8 @@ import { MAX_INVOICE_CENTS } from '../domain/invoices'
 import { MAX_INSTALLMENTS, MAX_TOTAL_CENTS } from '../domain/money'
 const audit = { createdAt: z.instanceof(Timestamp), updatedAt: z.instanceof(Timestamp) }
 export const financialSchemas = {
+  accounts: z.object({ openingCents: z.number().int().min(-999999999).max(999999999), startDate: civilDateSchema, ...audit }).strict(),
+  accountMovements: z.object({ amountCents: z.number().int().min(-999999999).max(999999999), date: civilDateSchema, source: z.enum(['settlementEvents', 'invoiceEvents', 'adjustment']), sourceId: z.string(), description: z.string(), reversesId: z.string().nullable(), ...audit }).strict(),
   entries: entryInputSchema.safeExtend({
     recurrenceId: z.string().nullable().optional(), recurrenceVersionId: z.string().nullable().optional(),
     revision: z.number().int().positive(), mutationId: z.string().min(1), deletedAt: z.instanceof(Timestamp).nullable(), ...audit,
@@ -27,6 +29,7 @@ export const financialSchemas = {
     lastEventId: z.string().nullable(), ...audit,
   }).strict(),
   invoiceEvents: z.object({
+    affectAccount: z.boolean().optional(),
     invoiceId: z.string(), cardId: z.string(), competence: competenceSchema, dueDate: civilDateSchema,
     type: z.enum(['payment', 'reversal']), amountCents: z.number().int().positive().max(MAX_INVOICE_CENTS),
     invoiceRevision: z.number().int().positive(), paymentEventId: z.string(), paidAt: z.instanceof(Timestamp), ...audit,
@@ -40,6 +43,7 @@ export const financialSchemas = {
     validUntil: competenceSchema.nullable(), action: z.enum(['configure', 'pause', 'end']), active: z.boolean(), ...audit,
   }),
   settlementEvents: z.object({
+    affectAccount: z.boolean().optional(),
     installmentId: z.string(), entryId: z.string(), entryRevision: z.number().int().positive(),
     type: z.enum(['payment', 'receipt', 'reversal']), amountCents: z.number().int().positive(), dueDate: civilDateSchema,
     settlementRevision: z.number().int().positive(), confirmationEventId: z.string(), confirmedAt: z.instanceof(Timestamp),

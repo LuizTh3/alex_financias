@@ -1,12 +1,13 @@
+import { prepareAccountMovement } from './accountRepository'
 import { doc, getDocFromServer, runTransaction, serverTimestamp, type Firestore } from 'firebase/firestore'
 import { z } from 'zod'
-import { db, personalUid } from '../lib/firebase'
+import { db } from '../lib/firebase'
 import { financialSchemas } from './financialSchemas'
 import { invoiceId } from '../domain/entries'
 export class InvoiceError extends Error {}
-export type InvoiceCommand = { invoiceId: string; mutationId: string; expectedRevision: number; expectedTotalCents: number; action: 'payment' | 'reversal' }
+export type InvoiceCommand = { invoiceId: string; mutationId: string; expectedRevision: number; expectedTotalCents: number; affectAccount?: boolean; action: 'payment' | 'reversal' }
 function ownerDb(uid: string): Firestore {
-  if (!db || uid !== personalUid) throw new InvoiceError('Conta sem acesso às faturas.')
+  if (!db || !uid) throw new InvoiceError('Conta sem acesso às faturas.')
   return db
 }
 export async function changeInvoicePayment(uid: string, command: InvoiceCommand): Promise<void> {
@@ -18,7 +19,7 @@ export async function changeInvoicePayment(uid: string, command: InvoiceCommand)
   const eventRef = doc(database, 'users', uid, 'invoiceEvents', command.mutationId)
   function sameEvent(data: unknown) {
     const event = financialSchemas.invoiceEvents.safeParse(data)
-    return event.success && event.data.invoiceId === command.invoiceId && event.data.type === command.action
+    return event.success && (event.data.affectAccount ?? false) === (command.affectAccount ?? false) && event.data.invoiceId === command.invoiceId && event.data.type === command.action
       && event.data.invoiceRevision === command.expectedRevision + 1 && event.data.amountCents === command.expectedTotalCents
   }
   try {
@@ -36,12 +37,15 @@ export async function changeInvoicePayment(uid: string, command: InvoiceCommand)
       if (command.action === 'reversal' && (current.status !== 'paid' || !current.paidAt || !current.paidAmountCents || !current.lastEventId)) throw new InvoiceError('Somente pagamentos confirmados podem ser desfeitos.')
       const revision = current.revision + 1
       const paying = command.action === 'payment'
+      const writeMovement = await prepareAccountMovement(transaction, database, uid, 'invoiceEvents', command.mutationId, -current.totalCents, command.affectAccount === true, paying ? undefined : current.lastEventId!)
+      writeMovement()
       transaction.update(ref, {
         status: paying ? 'paid' : 'pending', paidAt: paying ? serverTimestamp() : null,
         paidAmountCents: paying ? current.totalCents : null, revision,
         lastMutationId: command.mutationId, lastEventId: command.mutationId, updatedAt: serverTimestamp(),
       })
       transaction.set(eventRef, {
+        affectAccount: command.affectAccount === true,
         invoiceId: command.invoiceId, cardId: current.cardId, competence: current.competence, dueDate: current.dueDate,
         type: command.action, amountCents: paying ? current.totalCents : current.paidAmountCents,
         invoiceRevision: revision, paymentEventId: paying ? command.mutationId : current.lastEventId,

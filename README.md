@@ -12,13 +12,13 @@ cp .env.example .env # apenas em um checkout sem .env; preserve a configuração
 npm run dev
 ```
 
-Preencha as variáveis de `.env`. Nunca versione esse arquivo. As variáveis `VITE_*` são incorporadas ao JavaScript público: use apenas configuração web e UID, nunca senha, chave privada ou service account.
+Preencha as variáveis de `.env`. Nunca versione esse arquivo. As variáveis `VITE_*` são incorporadas ao JavaScript público: use apenas configuração web, nunca senha, chave privada ou service account.
 
 ## Conta pessoal e Firebase
 
 1. No projeto do Firebase indicado em `.firebaserc`, habilite Authentication → Sign-in method → Email/Password.
 2. Em Authentication → Users → Add user, crie manualmente sua conta. A senha pertence exclusivamente ao Authentication.
-3. O UID informado é `Jhi9dIY92RbShnVhAVl5CaHuFJK2`, configurado em `.env`, `.env.example` e `firestore.rules`. Ao trocar de conta, atualize os três e publique as regras novamente.
+3. Qualquer usuário autenticado pode acessar sua própria área; não é necessário configurar UID no ambiente.
 4. Crie o Cloud Firestore em modo de produção. Adicione o domínio de acesso em Authentication → Settings → Authorized domains, se necessário.
 5. Autentique o CLI com `npx firebase login` e confira o projeto usando `npx firebase projects:list`.
 6. Publique as regras **antes de usar dados reais**:
@@ -27,7 +27,7 @@ Preencha as variáveis de `.env`. Nunca versione esse arquivo. As variáveis `VI
 npx firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-Não há cadastro público na interface nem chamada a `createUserWithEmailAndPassword`. A autorização real está nas regras: outro UID é negado, inclusive em seu próprio caminho. A ausência da tela de cadastro não impede chamadas diretas ao endpoint de criação de contas do Authentication; contas eventualmente criadas não terão acesso aos dados. O bloqueio de criação no serviço de identidade, se necessário, exige configuração adicional fora deste MVP.
+Não há cadastro público na interface. As regras permitem que cada usuário autenticado leia e grave somente em users/{seu UID}; caminhos de outros usuários permanecem bloqueados.
 
 As regras locais só passam a proteger o projeto remoto depois do deploy. Regras anteriores do console permanecem vigentes até lá.
 

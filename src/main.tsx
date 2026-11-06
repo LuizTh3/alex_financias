@@ -1,3 +1,4 @@
+import { AccountPage } from './pages/AccountPage'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
@@ -21,6 +22,7 @@ function App() {
         <Route path="/entrar" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
+            <Route path="/conta" element={<AccountPage />} />
             <Route path="/despesas-fixas" element={<FixedExpensesPage />} />
             <Route path="/a-receber" element={<ReceivablesPage />} />
             <Route path="/faturas" element={<InvoicesPage />} />

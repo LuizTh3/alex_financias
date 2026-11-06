@@ -1,9 +1,10 @@
+import { initializeAccount } from '../src/repositories/accountRepository'
 import { readFileSync } from 'node:fs'
 import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from 'vitest'
 import { initializeTestEnvironment, assertFails, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
 import { doc, getDoc, updateDoc, deleteDoc, setDoc, getDocs, collection, serverTimestamp, type Firestore } from 'firebase/firestore'
 const state = vi.hoisted(() => ({ db: null as Firestore | null }))
-vi.mock('../src/lib/firebase', () => ({ get db() { return state.db }, personalUid: 'Jhi9dIY92RbShnVhAVl5CaHuFJK2' }))
+vi.mock('../src/lib/firebase', () => ({ get db() { return state.db }, auth: { currentUser: { uid: 'Jhi9dIY92RbShnVhAVl5CaHuFJK2' } } }))
 import { saveEntry, deleteEntry } from '../src/repositories/entryRepository'
 import { changeSettlement } from '../src/repositories/settlementRepository'
 const uid = 'Jhi9dIY92RbShnVhAVl5CaHuFJK2'
@@ -42,6 +43,22 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)('recebimentos parcelados e
     await changeSettlement(uid, { ...command, mutationId: 'undo', expectedSettlementRevision: 1, action: 'reverse' })
     await changeSettlement(uid, command)
     expect((await getDoc(ref('installments', 'entry__1'))).data()!.status).toBe('pending')
+  })
+  it('movimenta a conta uma vez e reverte junto com a confirmação', async () => {
+    await initializeAccount(10000)
+    await changeSettlement(uid, { ...command, affectAccount: true })
+    await changeSettlement(uid, { ...command, affectAccount: true })
+    expect((await getDocs(collection(state.db!, 'users', uid, 'accountMovements'))).size).toBe(1)
+    expect((await getDoc(ref('accountMovements', 'settlementEvents_receive'))).data()!.amountCents).toBe(3334)
+    await changeSettlement(uid, { ...command, mutationId: 'undo', expectedSettlementRevision: 1, action: 'reverse' })
+    expect((await getDoc(ref('accountMovements', 'settlementEvents_undo'))).data()!.amountCents).toBe(-3334)
+    await assertFails(updateDoc(ref('accountMovements', 'settlementEvents_receive'), { amountCents: 1 }))
+    await assertFails(deleteDoc(ref('accountMovements', 'settlementEvents_receive')))
+  })
+  it('recebimento fora da conta não cria movimentação', async () => {
+    await initializeAccount(0)
+    await changeSettlement(uid, command)
+    expect((await getDocs(collection(state.db!, 'users', uid, 'accountMovements'))).size).toBe(0)
   })
   it('nega liquidação parcial, isolada ou edição do histórico', async () => {
     await assertFails(updateDoc(ref('installments', 'entry__1'), { status: 'received', settledAt: serverTimestamp(), updatedAt: serverTimestamp() }))

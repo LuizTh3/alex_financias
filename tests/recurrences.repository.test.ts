@@ -3,7 +3,7 @@ import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from 'vites
 import { initializeTestEnvironment, assertFails, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch, type Firestore } from 'firebase/firestore'
 const state = vi.hoisted(() => ({ db: null as Firestore | null }))
-vi.mock('../src/lib/firebase', () => ({ get db() { return state.db }, personalUid: 'Jhi9dIY92RbShnVhAVl5CaHuFJK2' }))
+vi.mock('../src/lib/firebase', () => ({ get db() { return state.db }, auth: { currentUser: { uid: 'Jhi9dIY92RbShnVhAVl5CaHuFJK2' } } }))
 import { saveRecurrence, materializeOccurrence } from '../src/repositories/recurrenceRepository'
 import { saveEntry, deleteEntry } from '../src/repositories/entryRepository'
 import { changeSettlement } from '../src/repositories/settlementRepository'
@@ -28,6 +28,14 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)('recorrências e ocorrênc
   const ref = (name: string, id: string) => doc(state.db!, `users/${uid}/${name}/${id}`)
   async function version(id = 'rec__1'): Promise<FinancialRecord<'recurrenceVersions'>> { const snap = await getDoc(ref('recurrenceVersions', id)); return { ...financialSchemas.recurrenceVersions.parse(snap.data()), id } }
   const create = (input = value) => saveRecurrence(uid, { id: 'rec', mutationId: 'create', expectedRevision: 0, effectiveFrom: '2027-01', action: 'configure', input })
+  it('materializa renda recorrente como recebimento e preserva o tipo ao pausar', async () => {
+    await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'users', uid, 'categories', 'income'), { name: 'Salário', scope: 'income', active: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }))
+    await create({ ...value, type: 'income', categoryId: 'income' })
+    await materializeOccurrence(uid, await version(), '2027-01')
+    expect((await getDoc(ref('entries', 'occ_rec_2027-01'))).data()!.type).toBe('income')
+    await saveRecurrence(uid, { id: 'rec', mutationId: 'pause', expectedRevision: 1, effectiveFrom: '2027-02', action: 'pause' })
+    expect((await version('rec__2')).type).toBe('income')
+  })
   it('cria versões atômicas e fecha a anterior sem mudar seu valor', async () => {
     await create()
     await saveRecurrence(uid, { id: 'rec', mutationId: 'edit', expectedRevision: 1, effectiveFrom: '2027-03', action: 'configure', input: { ...value, amountCents: 12000 } })

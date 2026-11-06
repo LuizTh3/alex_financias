@@ -27,10 +27,12 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)('segurança dos cadastros'
       for (const [name, data] of [['cards', card()], ['categories', category()]] as const) {
         await assertFails(getDoc(doc(db, `users/${owner}/${name}/test`)))
         await assertFails(getDocs(collection(db, `users/${owner}/${name}`)))
-        await assertFails(setDoc(doc(db, `users/intruso/${name}/test`), data))
+
         await assertFails(setDoc(doc(db, `users/${owner}/${name}/test`), data))
       }
     }
+    await assertSucceeds(setDoc(doc(env.authenticatedContext('intruso').firestore(), 'users/intruso/cards/test'), card()))
+    await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(), 'users/intruso/cards/test'), card()))
     await assertFails(setDoc(doc(env.authenticatedContext(owner).firestore(), 'users/outro/cards/test'), card()))
     await assertFails(getDoc(doc(env.authenticatedContext(owner).firestore(), 'users/outro/categories/test')))
   })
@@ -85,3 +87,4 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)('segurança dos cadastros'
     }
   })
 })
+
