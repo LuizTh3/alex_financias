@@ -1,5 +1,6 @@
 import { collection, doc, getDocFromServer, runTransaction, serverTimestamp, Timestamp, type Firestore, type Transaction } from 'firebase/firestore'
 import { z } from 'zod'
+import { occurrenceInput, occurrenceEntryId } from '../domain/recurrences'
 import { applyInvoiceDelta } from '../domain/invoices'
 import { db, personalUid } from '../lib/firebase'
 import { cardSchema, categorySchema } from '../domain/catalog'
@@ -7,7 +8,7 @@ import { entryInputSchema, generateInstallments, installmentId, invoiceId, sameE
 import { financialSchemas, type FinancialRecord } from './financialSchemas'
 
 export class FinancialError extends Error {}
-export type SaveEntryCommand = { entryId: string; mutationId: string; input: EntryInput; expectedRevision: number }
+export type SaveEntryCommand = { entryId: string; mutationId: string; input: EntryInput; expectedRevision: number; recurrence?: { id: string; versionId: string } }
 const identifier = z.string().regex(/^[A-Za-z0-9_-]{1,80}$/)
 function ownerDb(uid: string): Firestore {
   if (!db || !personalUid || uid !== personalUid) throw new FinancialError('Conta sem acesso ao motor financeiro.')
@@ -69,6 +70,7 @@ export async function saveEntry(uid: string, command: SaveEntryCommand): Promise
   try { await runTransaction(database, async transaction => {
     const snapshot = await transaction.get(ref)
     const current = snapshot.exists() ? { ...financialSchemas.entries.parse(snapshot.data()), id: snapshot.id } : null
+    if (current && command.recurrence && (current.recurrenceId !== command.recurrence.id || current.recurrenceVersionId !== command.recurrence.versionId)) throw new FinancialError('O vínculo de recorrência não pode ser alterado.')
     if (current?.deletedAt) throw new FinancialError('Este lançamento já foi excluído e não pode ser recriado com o mesmo ID.')
     if (current?.mutationId === command.mutationId) {
       if (sameEntryInput(current, input)) return
@@ -77,13 +79,26 @@ export async function saveEntry(uid: string, command: SaveEntryCommand): Promise
     if ((current?.revision ?? 0) !== command.expectedRevision) throw conflict()
     const revision = (current?.revision ?? 0) + 1
     // Todas as leituras ocorrem antes de qualquer escrita da transação.
-    if (!current || current.categoryId !== input.categoryId || current.type !== input.type) {
+    if (current?.recurrenceId && (input.type !== 'expense' || input.installmentCount !== 1
+      || input.firstCompetence !== current.firstCompetence || input.purchaseDate !== current.purchaseDate)) throw new FinancialError('Uma ocorrência mantém sua competência e tem uma única cobrança.')
+    if (!current && command.recurrence) {
+      const versionSnapshot = await transaction.get(doc(database, 'users', uid, 'recurrenceVersions', command.recurrence.versionId))
+      if (!versionSnapshot.exists()) throw new FinancialError('Versão de recorrência inexistente.')
+      const version = { ...financialSchemas.recurrenceVersions.parse(versionSnapshot.data()), id: versionSnapshot.id }
+      if (version.recurrenceId !== command.recurrence.id || command.entryId !== occurrenceEntryId(version.recurrenceId, input.firstCompetence)
+        || !sameEntryInput(occurrenceInput(version, input.firstCompetence, input.dueDay), input)) throw new FinancialError('A versão da recorrência mudou. Atualize a competência.')
+      if (version.cardId) {
+        const card = await transaction.get(doc(database, 'users', uid, 'cards', version.cardId))
+        if (!card.exists() || card.data().dueDay !== input.dueDay) throw new FinancialError('O vencimento do cartão mudou. Atualize a competência.')
+      }
+    }
+    if ((!command.recurrence || current) && (!current || current.categoryId !== input.categoryId || current.type !== input.type)) {
       const category = await transaction.get(doc(database, 'users', uid, 'categories', input.categoryId))
       if (!category.exists()) throw new FinancialError('Categoria inexistente.')
       const value = categorySchema.parse({ name: category.data().name, scope: category.data().scope })
       if (!category.data().active || (value.scope !== 'both' && value.scope !== input.type)) throw new FinancialError('Selecione uma categoria ativa compatível com o tipo do lançamento.')
     }
-    if (input.cardId) {
+    if (input.cardId && (!command.recurrence || current)) {
       if (current?.cardId === input.cardId) {
         if (current.dueDay !== input.dueDay) throw new FinancialError('O dia de vencimento deste lançamento já está registrado.')
       } else {
@@ -98,14 +113,17 @@ export async function saveEntry(uid: string, command: SaveEntryCommand): Promise
     const planned = generateInstallments(command.entryId, input, revision)
     const invoices = await readInvoices(transaction, database, uid, [...oldCharges, ...planned])
     const audit = { updatedAt: serverTimestamp() }
-    transaction.set(ref, { ...input, revision, mutationId: command.mutationId, deletedAt: null, createdAt: current?.createdAt ?? serverTimestamp(), ...audit })
+    const recurrence = current?.recurrenceId ? { recurrenceId: current.recurrenceId, recurrenceVersionId: current.recurrenceVersionId }
+      : command.recurrence ? { recurrenceId: command.recurrence.id, recurrenceVersionId: command.recurrence.versionId } : {}
+    transaction.set(ref, { ...input, ...recurrence, revision, mutationId: command.mutationId, deletedAt: null, createdAt: current?.createdAt ?? serverTimestamp(), ...audit })
     const oldMap = new Map(oldCharges.map(item => [item.id, item]))
     for (const part of planned) {
       const { id, ...data } = part
       const invoiceKey = part.cardId ? invoiceId(part.cardId, part.competence) : null
       const existingInvoice = invoiceKey ? invoices.get(invoiceKey) : null
       transaction.set(doc(database, 'users', uid, 'installments', id), {
-        ...data, dueDate: existingInvoice?.dueDate ?? data.dueDate,
+        ...data, recurrenceId: current?.recurrenceId ?? command.recurrence?.id ?? null, dueDate: existingInvoice?.dueDate ?? data.dueDate,
+        ...(oldMap.get(id)?.settlementRevision !== undefined ? { settlementRevision: oldMap.get(id)!.settlementRevision, lastSettlementEventId: oldMap.get(id)!.lastSettlementEventId ?? null } : {}),
         createdAt: oldMap.get(id)?.createdAt ?? serverTimestamp(), ...audit,
       })
     }

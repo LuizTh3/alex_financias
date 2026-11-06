@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { subscribeTo, type CollectionName, type RecordOf } from '../repositories/financeRepository'
-export function useFinancialRecords<K extends CollectionName>(name: K) {
+export function useFinancialRecords<K extends CollectionName>(name: K, includeDeleted = false) {
   const { user } = useAuth()
   const [rows, setRows] = useState<RecordOf<K>[]>([])
   const [loading, setLoading] = useState(true)
@@ -12,7 +12,7 @@ export function useFinancialRecords<K extends CollectionName>(name: K) {
     if (!user) { setLoading(false); return }
     return subscribeTo(user.uid, name, items => { setRows(items); setLoading(false); setError(null) }, () => {
       setError('Não foi possível carregar os dados financeiros. Confira a conexão e as regras publicadas.'); setLoading(false)
-    })
-  }, [user, name, attempt])
+    }, { includeDeleted })
+  }, [user, name, attempt, includeDeleted])
   return { rows, loading, error, retry: () => setAttempt(value => value + 1) }
 }

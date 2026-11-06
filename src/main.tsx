@@ -10,6 +10,8 @@ import { AppLayout } from './components/AppLayout'
 import { CatalogPage } from './pages/CatalogPage'
 import { EntriesPage } from './pages/EntriesPage'
 import { InvoicesPage } from './pages/InvoicesPage'
+import { FixedExpensesPage } from './pages/FixedExpensesPage'
+import { ReceivablesPage } from './pages/ReceivablesPage'
 import './styles.css'
 function App() {
   if (configurationError) return <main className="p-10" role="alert">{configurationError}</main>
@@ -19,11 +21,13 @@ function App() {
         <Route path="/entrar" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
+            <Route path="/despesas-fixas" element={<FixedExpensesPage />} />
+            <Route path="/a-receber" element={<ReceivablesPage />} />
             <Route path="/faturas" element={<InvoicesPage />} />
             <Route path="/lancamentos" element={<EntriesPage />} />
             <Route path="/cartoes" element={<CatalogPage key="cards" kind="cards" />} />
             <Route path="/categorias" element={<CatalogPage key="categories" kind="categories" />} />
-            {['/', '/despesas-fixas', '/a-receber', '/futuros'].map(path =>
+            {['/', '/futuros'].map(path =>
               <Route key={path} path={path} element={<DashboardPage />} />)}
           </Route>
         </Route>

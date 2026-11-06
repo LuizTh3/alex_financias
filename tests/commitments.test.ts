@@ -23,4 +23,12 @@ describe('consulta de compromissos persistidos', () => {
     expect(commitmentSituation({ paid: true, income: true, dueDate: '2026-11-05' }, '2026-11-06')).toBe('Recebido')
   })
 
+  it('projeções novas em cartão não herdam a liquidação de cobranças existentes', () => {
+    const projected = [{ ...charges[0], id: 'projected', projected: true }]
+    const view = buildCommitments(entries, [...charges, ...projected], [{ cardId: 'card', competence: '2026-11', dueDate: '2026-11-12', status: 'paid' }], [])
+    expect(outstandingTotal(view.outgoing, '2026-11')).toBe(10000)
+    expect(view.invoiceRows).toHaveLength(2)
+    expect(view.charges.find(charge => charge.projected)?.paid).toBe(false)
+  })
+
 })

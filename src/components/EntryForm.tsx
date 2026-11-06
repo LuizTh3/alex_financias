@@ -23,9 +23,9 @@ const formSchema = z.object({
   return { ...rest, totalCents, cardId: fields.paymentMethod === 'card' ? fields.cardId || null : null }
 }).pipe(entryInputSchema)
 type FormFields = z.input<typeof formSchema>
-export function EntryForm({ record, cards, categories, invoices, initialMonth, onClose, onSaved }: {
+export function EntryForm({ record, cards, categories, invoices, initialMonth, initialType = 'expense', onClose, onSaved }: {
   record?: FinancialRecord<'entries'>; cards: CardRecord[]; categories: CategoryRecord[]; invoices: FinancialRecord<'invoices'>[];
-  initialMonth: string; onClose: () => void; onSaved: () => void;
+  initialMonth: string; initialType?: 'expense' | 'income'; onClose: () => void; onSaved: () => void;
 }) {
   const { user } = useAuth()
   const [entryId] = useState(() => record?.id ?? newEntryId(user!.uid))
@@ -38,7 +38,7 @@ export function EntryForm({ record, cards, categories, invoices, initialMonth, o
       type: record.type, description: record.description, totalAmount: `${Math.floor(record.totalCents / 100)},${String(record.totalCents % 100).padStart(2, '0')}`,
       categoryId: record.categoryId, purchaseDate: record.purchaseDate, paymentMethod: record.paymentMethod, cardId: record.cardId ?? '',
       installmentCount: record.installmentCount, firstCompetence: record.firstCompetence, dueDay: record.dueDay,
-    } : { type: 'expense', description: '', totalAmount: '', categoryId: '', purchaseDate: todayCivil(), paymentMethod: 'direct', cardId: '', installmentCount: 1, firstCompetence: initialMonth, dueDay: Number(todayCivil().slice(-2)) },
+    } : { type: initialType, description: '', totalAmount: '', categoryId: '', purchaseDate: todayCivil(), paymentMethod: 'direct', cardId: '', installmentCount: 1, firstCompetence: initialMonth, dueDay: Number(todayCivil().slice(-2)) },
   })
   const fields = watch()
   const card = cards.find(item => item.id === fields.cardId)
@@ -77,18 +77,18 @@ export function EntryForm({ record, cards, categories, invoices, initialMonth, o
       finally { locked.current = false }
     })}>
       <fieldset disabled={isSubmitting}>
-        <div className="form-grid"><div><label htmlFor="entry-type">Tipo</label><select id="entry-type" {...register('type')}><option value="expense">Despesa</option><option value="income">Recebimento</option></select></div>
+        <div className="form-grid"><div><label htmlFor="entry-type">Tipo</label><select id="entry-type" {...register('type')}><option value="expense">Despesa</option>{!record?.recurrenceId && <option value="income">Recebimento</option>}</select></div>
           <div><label htmlFor="entry-method">Forma de pagamento</label><select id="entry-method" {...register('paymentMethod')}><option value="direct">Direto</option>{fields.type === 'expense' && <option value="card">Cartão</option>}</select></div></div>
         <label htmlFor="entry-description">Descrição</label><input id="entry-description" autoFocus maxLength={240} {...register('description')} aria-invalid={!!errors.description} />
         <label htmlFor="entry-category">Categoria</label><select id="entry-category" {...register('categoryId')}><option value="">Selecione…</option>{options.map(category => <option key={category.id} value={category.id}>{category.name}{!category.active ? ' (arquivada)' : ''}</option>)}</select>
         {fields.paymentMethod === 'card' && <><label htmlFor="entry-card">Cartão</label><select id="entry-card" {...register('cardId')}><option value="">Selecione…</option>{cardOptions.map(item => <option key={item.id} value={item.id}>{item.name}{!item.active ? ' (arquivado)' : ''}</option>)}</select></>}
         <div className="form-grid"><div><label htmlFor="entry-total">Valor TOTAL (R$)</label><input id="entry-total" inputMode="decimal" placeholder="100,00" {...register('totalAmount')} aria-invalid={!!errors.totalAmount} /></div>
-          <div><label htmlFor="entry-count">Quantidade de parcelas</label><input id="entry-count" type="number" min={1} max={MAX_INSTALLMENTS} step={1} {...register('installmentCount', { valueAsNumber: true })} /><p className="muted text-sm mt-2">Até {MAX_INSTALLMENTS} parcelas.</p></div></div>
-        <label htmlFor="entry-date">{fields.type === 'expense' ? 'Data da compra' : 'Data do lançamento'}</label><input id="entry-date" type="date" min="1900-01-01" max="9999-12-31" {...register('purchaseDate')} />
+          <div><label htmlFor="entry-count">Quantidade de parcelas</label><input id="entry-count" type="number" min={1} max={record?.recurrenceId ? 1 : MAX_INSTALLMENTS} readOnly={!!record?.recurrenceId} step={1} {...register('installmentCount', { valueAsNumber: true })} /><p className="muted text-sm mt-2">Até {MAX_INSTALLMENTS} parcelas.</p></div></div>
+        <label htmlFor="entry-date">{fields.type === 'expense' ? 'Data da compra' : 'Data do lançamento'}</label><input id="entry-date" type="date" readOnly={!!record?.recurrenceId} min="1900-01-01" max="9999-12-31" {...register('purchaseDate')} />
         {suggestion && <div className="notice mt-4"><p>Sugestão da primeira competência: <strong>{formatMonth(suggestion.competence)}</strong>.</p>
           {suggestion.ambiguousClosingDate && <p>Compra na data de fechamento: confira a competência com seu banco.</p>}
-          <button type="button" className="secondary mt-2" onClick={() => setValue('firstCompetence', suggestion!.competence, { shouldDirty: true, shouldValidate: true })}>Usar sugestão</button></div>}
-        <div className="form-grid"><div><label htmlFor="entry-competence">Primeiro mês de vencimento</label><input id="entry-competence" type="month" min="1900-01" max="9999-12" {...register('firstCompetence')} /><p className="muted text-sm mt-2">Confira e ajuste antes de salvar.</p></div>
+          <button type="button" className="secondary mt-2" disabled={!!record?.recurrenceId} onClick={() => setValue('firstCompetence', suggestion!.competence, { shouldDirty: true, shouldValidate: true })}>Usar sugestão</button></div>}
+        <div className="form-grid"><div><label htmlFor="entry-competence">Primeiro mês de vencimento</label><input id="entry-competence" type="month" readOnly={!!record?.recurrenceId} min="1900-01" max="9999-12" {...register('firstCompetence')} /><p className="muted text-sm mt-2">Confira e ajuste antes de salvar.</p></div>
           <div><label htmlFor="entry-day">Dia do vencimento</label><input id="entry-day" type="number" min={1} max={31} readOnly={fields.paymentMethod === 'card'} {...register('dueDay', { valueAsNumber: true })} /></div></div>
         <p className="muted text-sm mt-4">{fields.paymentMethod === 'card' ? 'Uma parcela no cartão é uma cobrança na fatura. A fatura continua aguardando pagamento.' : 'As parcelas serão registradas como pendentes.'}</p>
         {preview.length > 0 && <section className="installment-preview mt-5" aria-label="Prévia das parcelas"><h3>Confira antes de salvar</h3>

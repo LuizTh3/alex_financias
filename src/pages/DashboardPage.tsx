@@ -3,6 +3,9 @@ import { useLocation } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { currentMonth, shiftMonth, formatMonth, formatMoney } from '../domain/finance'
 import { subscribeTo, type RecordOf } from '../repositories/financeRepository'
+import { useRecurringMonth } from '../hooks/useRecurringMonth'
+import { projectRecurrences } from '../domain/recurrences'
+import { generateInstallments } from '../domain/entries'
 import { useCatalog } from '../hooks/useCatalog'
 import { buildCommitments, outstandingTotal, commitmentSituation } from '../domain/commitments'
 
@@ -17,6 +20,7 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const { rows: cards, error: cardsError, loading: cardsLoading } = useCatalog('cards')
   const { pathname } = useLocation()
+  const recurring = useRecurringMonth(month)
   useEffect(() => {
     if (!user) return
     const pending = new Set(['entries', 'installments', 'invoices'])
@@ -31,7 +35,12 @@ export function DashboardPage() {
     return () => stops.forEach(stop => stop())
   }, [user])
   const titles: Record<string, string> = { '/': 'Visão geral', '/faturas': 'Faturas', '/despesas-fixas': 'Despesas fixas', '/a-receber': 'A receber', '/futuros': 'Compromissos futuros' }
-  const { charges, invoiceRows, outgoing, incoming, all } = buildCommitments(entries, installments, invoices, cards)
+  const projected = pathname === '/futuros' ? Array.from({ length: 12 }, (_, index) => {
+    try { return projectRecurrences(shiftMonth(month, index + 1), recurring.roots.rows, recurring.versions.rows, recurring.allEntries.rows, cards) } catch { return [] }
+  }).flat() : []
+  const projectedEntries = projected.map(item => ({ ...item.input, id: item.id }))
+  const projectedParts = projected.flatMap(item => generateInstallments(item.id, item.input).map(part => ({ ...part, recurrenceId: item.recurrenceId, projected: true })))
+  const { charges, invoiceRows, outgoing, incoming, all } = buildCommitments([...entries, ...projectedEntries], [...installments, ...projectedParts], invoices, cards)
   const items = pathname === '/faturas' ? invoiceRows : pathname === '/despesas-fixas' ? charges.filter(item => item.fixed && !item.income) : pathname === '/a-receber' ? incoming : all
   const visible = items.filter(item => pathname === '/futuros' ? item.competence > month && !item.paid : item.competence === month).sort((a, b) => a.dueDate.localeCompare(b.dueDate))
   // A seleção é por competência de vencimento, não pela data da compra.
@@ -43,15 +52,17 @@ export function DashboardPage() {
       <div className="month-picker"><button aria-label="Mês anterior" onClick={() => setMonth(shiftMonth(month, -1))}>←</button><span>{formatMonth(month)}</span><button aria-label="Próximo mês" onClick={() => setMonth(shiftMonth(month, 1))}>→</button></div>
     </header>
     <p className="muted mb-8">Acompanhe seus compromissos pelo mês de vencimento.</p>
+    {recurring.error && <p className="error mb-5" role="alert">{recurring.error}<button className="secondary ml-3" onClick={recurring.retry}>Tentar novamente</button></p>}
+    {pathname === '/futuros' && <p className="notice mb-5">Inclui projeções das recorrências para os próximos 12 meses. Projeções são estimativas; ocorrências já geradas preservam seus valores.</p>}
     {failure && <p className="error mb-6" role="alert">{failure}</p>}
-    {loading || cardsLoading ? <p role="status">Carregando seus dados…</p> : !failure && <>
+    {loading || cardsLoading || recurring.loading ? <p role="status">Carregando seus dados…</p> : !failure && <>
       <section className="stats">
         <article><p>A receber no mês</p><strong>{formatMoney(total(incoming))}</strong><span>Recebimentos pendentes</span></article>
         <article><p>A pagar no mês</p><strong>{formatMoney(total(outgoing))}</strong><span>Faturas e despesas pendentes</span></article>
         <article className="highlight"><p>Saldo previsto dos compromissos</p><strong>{formatMoney(total(incoming) - total(outgoing))}</strong><span>Valores a receber menos valores a pagar</span></article>
       </section>
       <section className="panel"><div className="panel-heading"><h2>{pathname === '/futuros' ? 'Após ' + formatMonth(month) : 'Compromissos do mês'}</h2><span className="badge">{visible.length} registros</span></div>
-        {visible.length ? <ul className="records">{visible.map(item => <li key={item.id}><div><strong>{item.description}</strong><p className="muted text-sm">{item.dueDate.split('-').reverse().join('/')} · {commitmentSituation(item)}</p></div><strong>{formatMoney(item.amountCents)}</strong></li>)}</ul>
+        {visible.length ? <ul className="records">{visible.map(item => <li key={item.id}><div><strong>{item.description}</strong><p className="muted text-sm">{item.dueDate.split('-').reverse().join('/')} · {item.projected ? 'Projeção' : commitmentSituation(item)}</p></div><strong>{formatMoney(item.amountCents)}</strong></li>)}</ul>
           : <div className="empty"><span className="empty-icon">◎</span><h3>{emptyText}</h3><p className="muted">Seus registros aparecerão aqui quando forem adicionados.</p></div>}
       </section>
     </>}

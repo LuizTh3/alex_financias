@@ -46,21 +46,29 @@ Acesse **Cartões** ou **Categorias** para cadastrar e editar. Arquivamento tem 
 
 Cada gravação usa `serverTimestamp()`. Edições e arquivamentos usam transações e detectam versões alteradas por outra aba. IDs estáveis por formulário e bloqueio de envio impedem duplicação em tentativas repetidas. Horários são exibidos em `America/Rio_Branco`.
 
-As regras locais agora autorizam cartões e categorias para o UID pessoal, validam os campos, protegem `createdAt` e negam exclusão física. Lançamentos, parcelas e materialização de faturas também têm regras específicas de gravação atômica; pagamento integral/reversão de faturas e seu histórico têm validação específica; pagamentos diretos e recorrências continuam sem comandos de escrita. É necessário publicar `firestore.rules` no Firebase para os formulários funcionarem no projeto remoto.
+As regras locais agora autorizam cartões e categorias para o UID pessoal, validam os campos, protegem `createdAt` e negam exclusão física. Lançamentos, parcelas e materialização de faturas também têm regras específicas de gravação atômica; pagamento integral/reversão de faturas e seu histórico têm validação específica; recorrências versionadas, ocorrências e confirmações diretas têm regras específicas. É necessário publicar `firestore.rules` no Firebase para os formulários funcionarem no projeto remoto.
 
-O [contrato financeiro](docs/financial-contract.md) registra o modelo Firestore, os comportamentos já implementados e os requisitos acordados para compras, parcelas, pagamentos e recorrências. Pagamentos diretos e recorrências ficam para as próximas etapas. Não há dados fictícios nem migração automática de documentos antigos.
+O [contrato financeiro](docs/financial-contract.md) registra o modelo Firestore, os comportamentos já implementados e os requisitos acordados para compras, parcelas, pagamentos e recorrências. Recorrências e confirmações diretas agora também estão disponíveis. Não há dados fictícios nem migração automática de documentos antigos.
 
 ## Lançamentos e motor financeiro
 
 Acesse **Lançamentos** para criar despesas ou recebimentos, conferir a sugestão de competência e a prévia das parcelas, editar o conjunto completo ou excluir com confirmação. Dinheiro usa centavos inteiros; o total é dividido exatamente. Limite inicial de 5 parcelas por lançamento, considerando também as cotas de validação nas regras do Firestore.
 
-O [motor financeiro](docs/financial-engine.md) documenta os cálculos, o limite, os comandos idempotentes, as transações, as revisões, a exclusão com auditoria e os bloqueios de parcelas/faturas liquidadas. As cobranças futuras são geradas no cadastro e ficam disponíveis nas consultas mensais. A confirmação integral/reversão de faturas já está disponível. Pagamentos diretos e recorrências serão adicionados em suas etapas.
+O [motor financeiro](docs/financial-engine.md) documenta os cálculos, o limite, os comandos idempotentes, as transações, as revisões, a exclusão com auditoria e os bloqueios de parcelas/faturas liquidadas. As cobranças futuras são geradas no cadastro e ficam disponíveis nas consultas mensais. A confirmação integral/reversão de faturas já está disponível. Recorrências versionadas e confirmações diretas já estão integradas às consultas mensais.
 
 ## Faturas mensais e histórico
 
 Em **Faturas**, consulte mês, cartão e situação, abra a composição das cobranças e confirme o pagamento **integral**. A reversão exige confirmação e libera as cobranças para correção, preservando o pagamento original no histórico. Cartões arquivados continuam visíveis nos períodos com faturas.
 
 O [módulo de faturas](docs/invoices.md) detalha saldos materializados, comandos idempotentes, histórico imutável, concorrência e a ferramenta administrativa de migração dos cabeçalhos anteriores (modo de conferência por padrão). Pagamento não cria outra despesa e não altera quitações individuais das parcelas em cartão.
+
+## Recorrências e recebimentos parcelados
+
+Em **Despesas fixas**, alterne entre ocorrências mensais e modelos com histórico de versões. Crie, pause, retome ou encerre a partir de uma competência. Ocorrências já geradas permanecem intactas; a geração automática cria apenas as faltantes, sem duplicar em duas abas. Compromissos futuros incluem projeções dos próximos 12 meses.
+
+Em **A receber**, cadastre entradas parceladas, confirme ou desfaça cada recebimento e consulte seu histórico. Ocorrências diretas de gastos fixos também têm pagamento reversível; as cobradas em cartão derivam a quitação da fatura.
+
+O [guia de recorrências e recebimentos](docs/recurrences-and-receivables.md) detalha vigências, ocorrências, preservação dos registros existentes, auditoria, repositórios e regras de acesso. Não é necessário migrar parcelas anteriores para usar confirmações diretas.
 
 ## Validação e publicação
 

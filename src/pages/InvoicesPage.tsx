@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { currentMonth, shiftMonth, formatMoney, formatMonth, formatTimestamp } from '../domain/finance'
 import { monthlyInvoices } from '../domain/invoices'
+import { useRecurringMonth } from '../hooks/useRecurringMonth'
 import { useCatalog } from '../hooks/useCatalog'
 import { useFinancialRecords } from '../hooks/useFinancialRecords'
 import { newMutationId } from '../repositories/entryRepository'
@@ -31,6 +32,7 @@ export function InvoicesPage() {
   const loading = sources.some(source => source.loading)
   const loadError = sources.find(source => source.error)?.error
   const history = params.get('visao') === 'historico'
+  const recurring = useRecurringMonth(month, !history)
   const selectedCard = params.get('cartao') ?? ''
   function setParameter(key: string, value: string) {
     const next = new URLSearchParams(params)
@@ -71,7 +73,8 @@ export function InvoicesPage() {
       <div><label htmlFor="invoice-status">Situação</label><select id="invoice-status" value={status} onChange={event => setStatus(event.target.value)}><option value="all">Todas</option><option value="pending">Pendentes</option><option value="overdue">Atrasadas</option><option value="paid">Pagas</option><option value="empty">Sem movimentação</option></select></div>
     </div>
     <p role="status" className={message ? 'success mb-5' : 'sr-only'}>{message}</p>
-    {loading ? <p role="status">Carregando faturas…</p> : loadError ? <div className="error" role="alert"><p>{loadError}</p><button className="secondary mt-3" onClick={() => sources.forEach(source => source.retry())}>Tentar novamente</button></div> : <>
+    {recurring.error && <p className="error mb-5" role="alert">{recurring.error}<button className="secondary ml-3" onClick={recurring.retry}>Tentar gerar novamente</button></p>}
+    {loading || recurring.loading ? <p role="status">Carregando faturas…</p> : loadError ? <div className="error" role="alert"><p>{loadError}</p><button className="secondary mt-3" onClick={() => sources.forEach(source => source.retry())}>Tentar novamente</button></div> : <>
       <section className="stats"><article><p>{history ? 'A pagar no histórico' : 'A pagar no mês'}</p><strong>{formatMoney(pendingTotal)}</strong><span>Faturas pendentes e atrasadas</span></article><article><p>Pagamentos vigentes</p><strong>{formatMoney(paidTotal)}</strong><span>Confirmações que não foram desfeitas</span></article><article className="highlight"><p>Faturas com movimentação</p><strong>{base.filter(row => row.chargeCount > 0).length}</strong><span>{history ? 'Competências registradas' : formatMonth(month)}</span></article></section>
       <section className="invoice-grid" aria-label="Faturas">
         {filtered.length === 0 ? <div className="panel empty"><h2>Nenhuma fatura neste filtro</h2><p className="muted mt-2">Escolha outro cartão ou situação para consultar.</p></div> : filtered.map(row => <article className="panel invoice-card" key={row.id}>

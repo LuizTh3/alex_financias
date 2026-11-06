@@ -3,12 +3,12 @@ import { todayCivil } from './calendar'
 export type EntrySummary = { id: string; type: 'expense' | 'income'; description: string }
 export type InstallmentSummary = {
   id: string; entryId: string; amountCents: number; competence: string; dueDate: string;
-  cardId?: string | null; recurrenceId?: string | null; status?: 'pending' | 'paid' | 'received' | null;
+  projected?: boolean; cardId?: string | null; recurrenceId?: string | null; status?: 'pending' | 'paid' | 'received' | null;
 }
 export type InvoiceSummary = { cardId: string; competence: string; dueDate: string; status: 'pending' | 'paid' }
 export type CommitmentView = {
   id: string; description: string; amountCents: number; dueDate: string; paid: boolean;
-  competence: string; income: boolean; fixed: boolean; cardId?: string;
+  competence: string; income: boolean; fixed: boolean; cardId?: string; projected?: boolean;
 }
 export function buildCommitments(
   entries: EntrySummary[], installments: InstallmentSummary[], invoices: InvoiceSummary[],
@@ -23,17 +23,17 @@ export function buildCommitments(
     return {
       id: `installment:${item.id}`, description: entry?.description ?? 'Cobrança recorrente', amountCents: item.amountCents,
       dueDate: invoice?.dueDate ?? item.dueDate,
-      paid: item.cardId ? invoice?.status === 'paid' : item.status === 'paid' || item.status === 'received',
-      competence: item.competence, income: entry?.type === 'income', fixed: !!item.recurrenceId, cardId: item.cardId ?? undefined,
+      paid: item.projected ? false : item.cardId ? invoice?.status === 'paid' : item.status === 'paid' || item.status === 'received',
+      competence: item.competence, income: entry?.type === 'income', fixed: !!item.recurrenceId, cardId: item.cardId ?? undefined, projected: item.projected ?? false,
     }
   })
   const groups = new Map<string, CommitmentView>()
   for (const charge of charges) {
     if (!charge.cardId) continue
-    const key = `${charge.cardId}:${charge.competence}`
+    const key = `${charge.cardId}:${charge.competence}:${charge.projected ? 'projection' : 'actual'}`
     const existing = groups.get(key)
     if (existing) existing.amountCents += charge.amountCents
-    else groups.set(key, { ...charge, id: `invoice:${key}`, description: `Fatura · ${cardMap.get(charge.cardId)?.name ?? 'Cartão'}`, income: false })
+    else groups.set(key, { ...charge, id: `invoice:${key}`, description: `${charge.projected ? 'Projeção · ' : ''}Fatura · ${cardMap.get(charge.cardId)?.name ?? 'Cartão'}`, income: false })
   }
   const invoiceRows = [...groups.values()]
   // Um cartão aparece no total pela fatura, evitando contar a compra duas vezes.

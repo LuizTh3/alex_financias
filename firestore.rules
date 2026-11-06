@@ -74,7 +74,7 @@ service cloud.firestore {
     }
     function entryShape(data) {
       return data.keys().hasAll(['type', 'description', 'totalCents', 'categoryId', 'purchaseDate', 'paymentMethod', 'cardId', 'installmentCount', 'firstCompetence', 'dueDay', 'revision', 'mutationId', 'deletedAt', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['type', 'description', 'totalCents', 'categoryId', 'purchaseDate', 'paymentMethod', 'cardId', 'installmentCount', 'firstCompetence', 'dueDay', 'revision', 'mutationId', 'deletedAt', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['type', 'description', 'totalCents', 'categoryId', 'purchaseDate', 'paymentMethod', 'cardId', 'installmentCount', 'firstCompetence', 'dueDay', 'revision', 'mutationId', 'deletedAt', 'createdAt', 'updatedAt', 'recurrenceId', 'recurrenceVersionId'])
         && data.type in ['expense', 'income'] && data.description is string
         && data.description.size() >= 1 && data.description.size() <= 240
         && data.description.matches('.*[^\\s].*') && !data.description.matches('^\\s.*|.*\\s$')
@@ -129,7 +129,7 @@ service cloud.firestore {
         && data.count == entry.installmentCount
         && data.amountCents is int && data.amountCents == int(entry.totalCents / entry.installmentCount) + (data.index <= entry.totalCents % entry.installmentCount ? 1 : 0)
         && data.competence == shiftedMonth(entry.firstCompetence, data.index - 1)
-        && data.cardId == entry.cardId && data.recurrenceId == null && data.settledAt == null
+        && data.cardId == entry.cardId && data.recurrenceId == entry.get('recurrenceId', null) && data.settledAt == null
         && (data.cardId == null ? data.status == 'pending' : data.status == null)
         && (data.cardId == null ? data.dueDate == civilDate(data.competence, entry.dueDay)
           : data.dueDate == getAfter(/databases/$(database)/documents/users/$(userId)/invoices/$(data.cardId + '__' + data.competence)).data.dueDate)
@@ -137,7 +137,7 @@ service cloud.firestore {
     }
     function partShape(data) {
       return data.keys().hasAll(['entryId', 'revision', 'index', 'count', 'amountCents', 'competence', 'dueDate', 'cardId', 'recurrenceId', 'status', 'settledAt', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['entryId', 'revision', 'index', 'count', 'amountCents', 'competence', 'dueDate', 'cardId', 'recurrenceId', 'status', 'settledAt', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['entryId', 'revision', 'index', 'count', 'amountCents', 'competence', 'dueDate', 'cardId', 'recurrenceId', 'status', 'settledAt', 'createdAt', 'updatedAt', 'settlementRevision', 'lastSettlementEventId'])
         && validId(data.entryId) && data.revision is int && data.count is int
         && data.createdAt is timestamp && data.updatedAt == request.time;
     }
@@ -151,10 +151,10 @@ service cloud.firestore {
       allow create: if isOwner(userId) && validId(entryId) && entryShape(request.resource.data)
         && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
         && request.resource.data.deletedAt == null && request.resource.data.revision == 1
-        && referencesAllowed(userId, request.resource.data, {'categoryId': '', 'type': '', 'cardId': null, 'dueDay': 0})
+        && entrySource(userId, entryId, request.resource.data)
         && completeSchedule(userId, entryId, request.resource.data);
       allow update: if isOwner(userId) && resource.data.deletedAt == null && entryShape(request.resource.data)
-        && validUpdate(request.resource.data) && request.resource.data.revision == resource.data.revision + 1
+        && validUpdate(request.resource.data) && sameOccurrence(request.resource.data, resource.data) && request.resource.data.revision == resource.data.revision + 1
         && request.resource.data.mutationId != resource.data.mutationId
         && (request.resource.data.deletedAt == null
           ? referencesAllowed(userId, request.resource.data, resource.data)
@@ -164,12 +164,14 @@ service cloud.firestore {
     match /users/{userId}/installments/{partId} {
       allow read: if isOwner(userId);
       allow create: if isOwner(userId) && partShape(request.resource.data)
-        && request.resource.data.createdAt == request.time && partMatchesEntry(userId, partId, request.resource.data);
+        && request.resource.data.createdAt == request.time && request.resource.data.get('settlementRevision', 0) == 0
+        && request.resource.data.get('lastSettlementEventId', null) == null && partMatchesEntry(userId, partId, request.resource.data);
       allow update: if isOwner(userId) && partShape(request.resource.data)
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.entryId == resource.data.entryId && request.resource.data.index == resource.data.index
-        && request.resource.data.revision == resource.data.revision + 1
-        && editablePart(userId, resource.data) && partMatchesEntry(userId, partId, request.resource.data);
+        && ((request.resource.data.revision == resource.data.revision + 1 && sameSettlement(request.resource.data, resource.data)
+          && editablePart(userId, resource.data) && partMatchesEntry(userId, partId, request.resource.data))
+          || directSettlement(userId, partId, request.resource.data));
       allow delete: if isOwner(userId) && partCanBeRemoved(userId, resource.data);
     }
     function invoiceShape(data) {
@@ -269,8 +271,152 @@ service cloud.firestore {
         && (event.type == 'payment' ? before.status == 'pending' && after.status == 'paid' : before.status == 'paid' && after.status == 'pending')
         && eventMatches(userId, event.invoiceId, eventId, before, after);
     }
-    match /users/{userId}/recurrences/{recurrenceId} {
+    function localMonth() {
+      let time = request.time - duration.value(5, 'h');
+      return string(time.year()) + '-' + (time.month() < 10 ? '0' : '') + string(time.month());
+    }
+    function recurrenceIdValid(value) {
+      return value is string && value.matches('^[A-Za-z0-9_-]{1,40}$');
+    }
+    function recurrenceRootShape(data, id) {
+      return data.keys().hasAll(['startCompetence', 'latestFrom', 'latestVersionId', 'revision', 'state', 'mutationId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['startCompetence', 'latestFrom', 'latestVersionId', 'revision', 'state', 'mutationId', 'createdAt', 'updatedAt'])
+        && recurrenceIdValid(id) && validMonth(data.startCompetence) && validMonth(data.latestFrom)
+        && data.latestFrom >= data.startCompetence && data.revision is int && data.revision >= 1
+        && data.latestVersionId == id + '__' + string(data.revision)
+        && data.state in ['active', 'paused', 'ended'] && validId(data.mutationId)
+        && data.createdAt is timestamp && data.updatedAt == request.time;
+    }
+    function versionShape(data) {
+      return data.keys().hasAll(['recurrenceId', 'revision', 'effectiveFrom', 'validUntil', 'description', 'amountCents', 'categoryId', 'paymentMethod', 'cardId', 'dueDay', 'action', 'active', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['recurrenceId', 'revision', 'effectiveFrom', 'validUntil', 'description', 'amountCents', 'categoryId', 'paymentMethod', 'cardId', 'dueDay', 'action', 'active', 'createdAt', 'updatedAt'])
+        && recurrenceIdValid(data.recurrenceId) && data.revision is int && data.revision >= 1
+        && validMonth(data.effectiveFrom) && (data.validUntil == null || validMonth(data.validUntil) && data.validUntil >= data.effectiveFrom)
+        && data.description is string && data.description.size() >= 1 && data.description.size() <= 240
+        && data.description.matches('.*[^\\s].*') && !data.description.matches('^\\s.*|.*\\s$')
+        && data.amountCents is int && data.amountCents >= 1 && data.amountCents <= 999999999
+        && validId(data.categoryId) && data.dueDay is int && data.dueDay >= 1 && data.dueDay <= 31
+        && (data.paymentMethod == 'direct' && data.cardId == null || data.paymentMethod == 'card' && validId(data.cardId))
+        && data.action in ['configure', 'pause', 'end'] && data.active == (data.action == 'configure')
+        && data.createdAt is timestamp && data.updatedAt == request.time;
+    }
+    function rootVersionMatches(userId, id, data) {
+      let version = getAfter(/databases/$(database)/documents/users/$(userId)/recurrenceVersions/$(data.latestVersionId)).data;
+      return version.recurrenceId == id && version.revision == data.revision && version.effectiveFrom == data.latestFrom
+        && version.validUntil == null && version.createdAt == request.time
+        && data.state == (version.action == 'configure' ? 'active' : version.action == 'pause' ? 'paused' : 'ended');
+    }
+    function closesPrevious(userId, before, after) {
+      let version = getAfter(/databases/$(database)/documents/users/$(userId)/recurrenceVersions/$(before.latestVersionId)).data;
+      return version.validUntil == after.latestFrom && version.updatedAt == request.time;
+    }
+    match /users/{userId}/recurrences/{id} {
       allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && recurrenceRootShape(request.resource.data, id)
+        && request.resource.data.createdAt == request.time && request.resource.data.revision == 1
+        && request.resource.data.startCompetence == request.resource.data.latestFrom && request.resource.data.state == 'active'
+        && rootVersionMatches(userId, id, request.resource.data);
+      allow update: if isOwner(userId) && recurrenceRootShape(request.resource.data, id) && resource.data.state != 'ended'
+        && validUpdate(request.resource.data) && request.resource.data.startCompetence == resource.data.startCompetence
+        && request.resource.data.revision == resource.data.revision + 1 && request.resource.data.mutationId != resource.data.mutationId
+        && request.resource.data.latestFrom >= resource.data.latestFrom && request.resource.data.latestFrom >= localMonth()
+        && rootVersionMatches(userId, id, request.resource.data) && closesPrevious(userId, resource.data, request.resource.data);
+    }
+    function versionReferences(userId, data) {
+      let root = getAfter(/databases/$(database)/documents/users/$(userId)/recurrences/$(data.recurrenceId)).data;
+      let previousId = data.recurrenceId + '__' + string(data.revision - 1);
+      let previous = data.revision == 1 ? {'categoryId': '', 'cardId': null, 'dueDay': 0}
+        : get(/databases/$(database)/documents/users/$(userId)/recurrenceVersions/$(previousId)).data;
+      return root.latestVersionId == data.recurrenceId + '__' + string(data.revision) && root.updatedAt == request.time
+        && root.latestFrom == data.effectiveFrom && root.revision == data.revision
+        && (data.categoryId == previous.categoryId || categoryReference(userId, {'categoryId': data.categoryId, 'type': 'expense'}))
+        && (data.cardId == null || (data.cardId == previous.cardId ? (data.action == 'configure' ? data.dueDay == get(/databases/$(database)/documents/users/$(userId)/cards/$(data.cardId)).data.dueDay : data.dueDay == previous.dueDay) : cardReference(userId, data)))
+        && (data.action == 'configure' || data.revision > 1 && data.description == previous.description && data.amountCents == previous.amountCents
+          && data.categoryId == previous.categoryId && data.paymentMethod == previous.paymentMethod && data.cardId == previous.cardId && data.dueDay == previous.dueDay);
+    }
+    function closesVersion(userId, data) {
+      let before = get(/databases/$(database)/documents/users/$(userId)/recurrences/$(data.recurrenceId)).data;
+      let after = getAfter(/databases/$(database)/documents/users/$(userId)/recurrences/$(data.recurrenceId)).data;
+      return resource.data.validUntil == null && data.validUntil == after.latestFrom
+        && before.latestVersionId == data.recurrenceId + '__' + string(data.revision)
+        && after.revision == before.revision + 1 && after.updatedAt == request.time;
+    }
+    match /users/{userId}/recurrenceVersions/{versionId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && versionShape(request.resource.data)
+        && versionId == request.resource.data.recurrenceId + '__' + string(request.resource.data.revision)
+        && request.resource.data.createdAt == request.time && request.resource.data.validUntil == null
+        && versionReferences(userId, request.resource.data);
+      allow update: if isOwner(userId) && versionShape(request.resource.data)
+        && validUpdate(request.resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['validUntil', 'updatedAt'])
+        && closesVersion(userId, request.resource.data);
+    }
+    function occurrenceSource(userId, entryId, data) {
+      let version = get(/databases/$(database)/documents/users/$(userId)/recurrenceVersions/$(data.recurrenceVersionId)).data;
+      return version.active == true && version.recurrenceId == data.recurrenceId
+        && entryId == 'occ_' + data.recurrenceId + '_' + data.firstCompetence
+        && data.firstCompetence >= version.effectiveFrom && (version.validUntil == null || data.firstCompetence < version.validUntil)
+        && data.type == 'expense' && data.installmentCount == 1 && data.purchaseDate == civilDate(data.firstCompetence, 1)
+        && data.description == version.description && data.totalCents == version.amountCents && data.categoryId == version.categoryId
+        && data.paymentMethod == version.paymentMethod && data.cardId == version.cardId
+        && (data.cardId == null ? data.dueDay == version.dueDay : data.dueDay == get(/databases/$(database)/documents/users/$(userId)/cards/$(data.cardId)).data.dueDay);
+    }
+    function entrySource(userId, entryId, data) {
+      return data.get('recurrenceId', null) == null
+        ? data.get('recurrenceVersionId', null) == null && referencesAllowed(userId, data, {'categoryId': '', 'type': '', 'cardId': null, 'dueDay': 0})
+        : recurrenceIdValid(data.recurrenceId) && validId(data.recurrenceVersionId) && occurrenceSource(userId, entryId, data);
+    }
+    function sameOccurrence(data, before) {
+      return data.get('recurrenceId', null) == before.get('recurrenceId', null)
+        && data.get('recurrenceVersionId', null) == before.get('recurrenceVersionId', null)
+        && (before.get('recurrenceId', null) == null || data.type == 'expense' && data.installmentCount == 1
+          && data.firstCompetence == before.firstCompetence && data.purchaseDate == before.purchaseDate);
+    }
+    function settlementEventShape(data) {
+      return data.keys().hasAll(['installmentId', 'entryId', 'entryRevision', 'type', 'amountCents', 'dueDate', 'settlementRevision', 'confirmationEventId', 'confirmedAt', 'description', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['installmentId', 'entryId', 'entryRevision', 'type', 'amountCents', 'dueDate', 'settlementRevision', 'confirmationEventId', 'confirmedAt', 'description', 'createdAt', 'updatedAt'])
+        && data.type in ['payment', 'receipt', 'reversal'] && data.amountCents is int && data.amountCents > 0
+        && data.settlementRevision is int && data.entryRevision is int && validId(data.entryId) && validId(data.confirmationEventId)
+        && data.confirmedAt is timestamp && data.createdAt == request.time && data.updatedAt == request.time;
+    }
+    function settlementEventMatches(userId, partId, eventId, before, after, entry) {
+      let event = getAfter(/databases/$(database)/documents/users/$(userId)/settlementEvents/$(eventId)).data;
+      return settlementEventShape(event) && event.installmentId == partId && event.entryId == before.entryId
+        && event.entryRevision == before.revision && event.amountCents == before.amountCents && event.dueDate == before.dueDate
+        && event.description == entry.description && event.settlementRevision == after.settlementRevision
+        && (before.status == 'pending' ? event.type == (entry.type == 'income' ? 'receipt' : 'payment')
+          && event.confirmedAt == request.time && event.confirmationEventId == eventId
+          : event.type == 'reversal' && event.confirmedAt == before.settledAt && event.confirmationEventId == before.lastSettlementEventId);
+    }
+    function directSettlement(userId, partId, data) {
+      let entry = get(/databases/$(database)/documents/users/$(userId)/entries/$(resource.data.entryId)).data;
+      let afterEntry = getAfter(/databases/$(database)/documents/users/$(userId)/entries/$(resource.data.entryId)).data;
+      return resource.data.cardId == null && entry.paymentMethod == 'direct' && entry.deletedAt == null
+        && entry.revision == resource.data.revision && afterEntry == entry
+        && data.diff(resource.data).affectedKeys().hasOnly(['status', 'settledAt', 'settlementRevision', 'lastSettlementEventId', 'updatedAt'])
+        && data.settlementRevision is int && data.settlementRevision == resource.data.get('settlementRevision', 0) + 1
+        && validId(data.lastSettlementEventId) && data.lastSettlementEventId != resource.data.get('lastSettlementEventId', null)
+        && (resource.data.status == 'pending' ? data.status == (entry.type == 'income' ? 'received' : 'paid') && data.settledAt == request.time
+          : resource.data.status == (entry.type == 'income' ? 'received' : 'paid') && data.status == 'pending' && data.settledAt == null)
+        && settlementEventMatches(userId, partId, data.lastSettlementEventId, resource.data, data, entry);
+    }
+    function sameSettlement(data, before) {
+      return data.get('settlementRevision', 0) == before.get('settlementRevision', 0)
+        && data.get('lastSettlementEventId', null) == before.get('lastSettlementEventId', null);
+    }
+    match /users/{userId}/settlementEvents/{eventId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validId(eventId) && settlementEventShape(request.resource.data)
+        && settlementEventTransition(userId, eventId, request.resource.data);
+    }
+    function settlementEventTransition(userId, eventId, event) {
+      let before = get(/databases/$(database)/documents/users/$(userId)/installments/$(event.installmentId)).data;
+      let after = getAfter(/databases/$(database)/documents/users/$(userId)/installments/$(event.installmentId)).data;
+      let entry = get(/databases/$(database)/documents/users/$(userId)/entries/$(before.entryId)).data;
+      return before.cardId == null && after.lastSettlementEventId == eventId && after.updatedAt == request.time
+        && after.settlementRevision == before.get('settlementRevision', 0) + 1
+        && (event.type == 'reversal' ? after.status == 'pending' && before.status != 'pending' : before.status == 'pending' && after.status != 'pending')
+        && settlementEventMatches(userId, event.installmentId, eventId, before, after, entry);
     }
     match /{document=**} {
       allow read, write: if false;

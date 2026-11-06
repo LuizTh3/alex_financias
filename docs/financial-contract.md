@@ -1,6 +1,6 @@
 # Contrato financeiro do MVP
 
-Este documento registra as regras acordadas para as próximas etapas. A entrega atual implementa cartões/categorias e o motor de lançamentos, parcelas, centavos, competências e repositórios. Faturas agora também têm listagem mensal, histórico e pagamento integral reversível; pagamentos diretos e recorrências ainda não estão habilitados. Consulte os detalhes em [Motor financeiro](financial-engine.md).
+Este documento registra as regras acordadas para as próximas etapas. A entrega atual implementa cartões/categorias e o motor de lançamentos, parcelas, centavos, competências e repositórios. Faturas agora também têm listagem mensal, histórico e pagamento integral reversível; recorrências versionadas, ocorrências mensais e confirmações diretas de pagamentos/recebimentos também estão habilitadas. Consulte os detalhes em [Motor financeiro](financial-engine.md).
 
 ## Calendário e auditoria
 
@@ -19,7 +19,9 @@ Este documento registra as regras acordadas para as próximas etapas. A entrega 
 | installments | entryId, revision, index (base 1), count, amountCents, competence, dueDate, cardId opcional, recurrenceId opcional, status/settledAt para pagamento direto ou recebimento, createdAt, updatedAt |
 | invoices | ID determinístico cardId+competence; cardId, competence, dueDate, status, paidAt, paidAmountCents, originInstallmentId, totalCents, chargeCount, revision, lastMutationId, lastEntryId, lastEntryRevision, lastEventId, createdAt, updatedAt |
 | invoiceEvents | invoiceId, cardId, competence, dueDate, type (payment/reversal), amountCents, invoiceRevision, paymentEventId, paidAt, createdAt, updatedAt |
-| recurrences | description, amountCents, categoryId, paymentMethod, cardId opcional, dueDay, startCompetence, endCompetence, active, versões com início de vigência, createdAt, updatedAt |
+| recurrences | startCompetence, latestFrom, latestVersionId, revision, state, mutationId, createdAt, updatedAt |
+| recurrenceVersions | recurrenceId, revision, effectiveFrom, validUntil, description, amountCents, categoryId, paymentMethod, cardId, dueDay, action, active, createdAt, updatedAt |
+| settlementEvents | installmentId, entryId, entryRevision, type, amountCents, dueDate, settlementRevision, confirmationEventId, confirmedAt, description, createdAt, updatedAt |
 
 Status persistidos em inglês: `pending`/`paid` para saídas, `pending`/`received` para entradas. Faturas: `pending`/`paid`; `paidAt` e `paidAmountCents` nulos antes de pagamento. Cobranças em cartão derivam o status da fatura; não têm quitação independente. Atraso é calculado a partir do vencimento civil e do status pendente.
 
@@ -43,7 +45,7 @@ Status persistidos em inglês: `pending`/`paid` para saídas, `pending`/`receive
 - IDs de parcelas determinísticos por lançamento+índice. Salvar lançamento e parcelas atomicamente; impor um limite de parcelas que considere os limites vigentes do Firestore, também as escritas auxiliares e as avaliações de regras.
 - Antes de editar/excluir parcelamento, apresentar o alcance. Alterações financeiras só são permitidas sem parcela/fatura vinculada paga/recebida; caso contrário, exigir desfazer confirmações afetadas. Sem edição isolada de parcela no MVP.
 
-## Recorrências e situações — próxima etapa
+## Recorrências e situações — implementado
 
 - Separar modelo recorrente de ocorrências mensais. Modelo não recebe pagamento. Ocorrência direta é quitável; em cartão, quitação é derivada da fatura.
 - Projeções combinam versão vigente do modelo e ocorrências existentes. Ao consultar uma competência, materializar só as faltantes, com ID recorrência+competência e controle transacional entre abas. Sem agendador. Edição/quitação individual exige ocorrência persistida.
@@ -52,6 +54,6 @@ Status persistidos em inglês: `pending`/`paid` para saídas, `pending`/`receive
 
 ## Limites desta entrega
 
-As consultas leem `entries`, `installments` e `invoices`, somam o cartão pela fatura uma única vez e usam quitação derivada no filtro de fixos. Lançamentos e suas parcelas agora são gravados atomicamente, com materialização de cabeçalhos de fatura, edição do conjunto e exclusão com tombstone. Os dados adicionais e as invariantes estão no [motor financeiro](financial-engine.md). Pagamento integral e reversão de faturas estão disponíveis, com registros imutáveis em `invoiceEvents`; consulte [faturas e histórico](invoices.md). Pagamentos diretos, recorrências e projeções de modelos recorrentes permanecem para a próxima etapa. Não há migração automática de documentos no formato antigo da inicialização.
+As consultas leem `entries`, `installments` e `invoices`, somam o cartão pela fatura uma única vez e usam quitação derivada no filtro de fixos. Lançamentos e suas parcelas agora são gravados atomicamente, com materialização de cabeçalhos de fatura, edição do conjunto e exclusão com tombstone. Os dados adicionais e as invariantes estão no [motor financeiro](financial-engine.md). Pagamento integral e reversão de faturas estão disponíveis, com registros imutáveis em `invoiceEvents`; consulte [faturas e histórico](invoices.md). Recorrências e confirmações diretas também estão implementadas; consulte [recorrências e recebimentos](recurrences-and-receivables.md). A política confirmada preserva todas as ocorrências já geradas, inclusive pendentes, ao editar/pausar/encerrar um modelo. Não há migração automática de documentos no formato antigo da inicialização.
 
 Referências técnicas: [transações Firestore](https://firebase.google.com/docs/firestore/manage-data/transactions), [validação de campos nas regras](https://firebase.google.com/docs/firestore/security/rules-fields).
