@@ -6,6 +6,14 @@ service cloud.firestore {
       return request.auth != null
         && request.auth.uid == userId;
     }
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasAll(['createdAt', 'welcomeSeenAt'])
+        && request.resource.data.keys().hasOnly(['createdAt', 'welcomeSeenAt'])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.welcomeSeenAt == request.time;
+    }
     function validName(name) {
       return name is string && name.size() > 0 && name.size() <= 120
         && name.matches('.*[^\\s].*') && !name.matches('^\\s.*|.*\\s$');

@@ -36,6 +36,17 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)('segurança dos cadastros'
     await assertFails(setDoc(doc(env.authenticatedContext(owner).firestore(), 'users/outro/cards/test'), card()))
     await assertFails(getDoc(doc(env.authenticatedContext(owner).firestore(), 'users/outro/categories/test')))
   })
+  it('permite apresentação inicial somente no próprio documento', async () => {
+    const db = env.authenticatedContext(owner).firestore()
+    const ref = doc(db, 'users', owner)
+    await assertSucceeds(getDoc(ref))
+    await assertFails(setDoc(ref, {}))
+    await assertSucceeds(setDoc(ref, { createdAt: serverTimestamp(), welcomeSeenAt: serverTimestamp() }))
+    await assertFails(updateDoc(ref, { welcomeSeenAt: serverTimestamp() }))
+    await assertFails(deleteDoc(ref))
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'users', owner)))
+    await assertFails(getDoc(doc(env.authenticatedContext('other').firestore(), 'users', owner)))
+  })
   it('valida os dias 1 a 31 e a cor do cartão', async () => {
     const ref = doc(env.authenticatedContext(owner).firestore(), `users/${owner}/cards/test`)
     await assertSucceeds(setDoc(ref, { ...card(), closingDay: 31, dueDay: 1 }))
@@ -81,7 +92,7 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)('segurança dos cadastros'
       await assertSucceeds(getDoc(doc(db, `users/${owner}/${name}/test`)))
       await assertFails(setDoc(doc(db, `users/${owner}/${name}/test`), { amountCents: 100 }))
     }
-    for (const path of [`users/${owner}/secrets/test`, `users/${owner}`, `users/${owner}/cards/test/nested/test`]) {
+    for (const path of [`users/${owner}/secrets/test`, `users/${owner}/cards/test/nested/test`]) {
       await assertFails(getDoc(doc(db, path)))
       await assertFails(setDoc(doc(db, path), {}))
     }

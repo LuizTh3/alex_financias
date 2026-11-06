@@ -77,7 +77,7 @@ export function EntryForm({ record, cards, categories, invoices, initialMonth, i
       finally { locked.current = false }
     })}>
       <fieldset disabled={isSubmitting}>
-        <div className="form-grid"><div><label htmlFor="entry-type">Tipo</label><select id="entry-type" {...register('type')}><option value="expense">Despesa</option>{!record?.recurrenceId && <option value="income">Recebimento</option>}</select></div>
+        <div className="form-grid"><div><label htmlFor="entry-type">Tipo</label><select id="entry-type" {...register('type')}>{(!record?.recurrenceId || record.type === 'expense') && <option value="expense">Despesa</option>}{(!record?.recurrenceId || record.type === 'income') && <option value="income">Recebimento</option>}</select></div>
           <div><label htmlFor="entry-method">Forma de pagamento</label><select id="entry-method" {...register('paymentMethod')}><option value="direct">Direto</option>{fields.type === 'expense' && <option value="card">Cartão</option>}</select></div></div>
         <label htmlFor="entry-description">Descrição</label><input id="entry-description" autoFocus maxLength={240} {...register('description')} aria-invalid={!!errors.description} />
         <label htmlFor="entry-category">Categoria</label><select id="entry-category" {...register('categoryId')}><option value="">Selecione…</option>{options.map(category => <option key={category.id} value={category.id}>{category.name}{!category.active ? ' (arquivada)' : ''}</option>)}</select>

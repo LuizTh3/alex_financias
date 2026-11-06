@@ -103,3 +103,11 @@ npm run test:rules
 ```
 
 `npm run test:rules` exige Java 21+ para o emulador Firestore. Os testes de regras e transações são ignorados no `npm test` quando não há emulador; o comando específico inicia um emulador com projeto demo, sem usar dados de produção. A publicação atual do site é feita pela Vercel, conforme o guia acima. O comando opcional `npm run deploy` permanece como alternativa para Firebase Hosting: publica regras, índices e o site no Firebase, e não na Vercel.
+
+## Licença e versionamento
+
+Projeto open source sob a [licença MIT](LICENSE). Permite uso, modificação e distribuição, inclusive comercial, preservando os avisos da licença. As dependências mantêm suas respectivas licenças.
+
+Versão atual: **0.2.0**. O projeto segue [Versionamento Semântico](https://semver.org/lang/pt-BR/): novas funcionalidades incrementam a versão menor e correções incrementam a versão de patch. A série `0.x` indica desenvolvimento inicial, sem compromisso de estabilidade definitiva. Consulte o [histórico de versões](CHANGELOG.md).
+
+O campo `private: true` no package.json apenas impede publicação acidental no npm; não altera a licença do código.

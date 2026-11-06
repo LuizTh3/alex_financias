@@ -1,3 +1,4 @@
+import { HelpPage } from './pages/HelpPage'
 import { AccountPage } from './pages/AccountPage'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -22,6 +23,7 @@ function App() {
         <Route path="/entrar" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
+            <Route path="/como-usar" element={<HelpPage />} />
             <Route path="/conta" element={<AccountPage />} />
             <Route path="/despesas-fixas" element={<FixedExpensesPage />} />
             <Route path="/a-receber" element={<ReceivablesPage />} />

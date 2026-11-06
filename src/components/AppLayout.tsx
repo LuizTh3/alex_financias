@@ -1,10 +1,13 @@
+import { ThemeToggle } from './ThemeToggle'
+import { WelcomeModal } from './WelcomeModal'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 const pages = [
-  ['/', 'Visão geral'], ['/lancamentos', 'Lançamentos'], ['/cartoes', 'Cartões'], ['/categorias', 'Categorias'],
-  ['/faturas', 'Faturas'], ['/despesas-fixas', 'Rendas e despesas mensais'], ['/conta', 'Minha conta'],
-  ['/a-receber', 'A receber'], ['/futuros', 'Compromissos futuros'],
+  ['/', 'Visão geral'], ['/como-usar', 'Como usar'],
+  ['/categorias', 'Categorias'], ['/cartoes', 'Cartões'], ['/conta', 'Minha conta'],
+  ['/lancamentos', 'Lançamentos'], ['/despesas-fixas', 'Rendas e despesas mensais'],
+  ['/faturas', 'Faturas'], ['/a-receber', 'A receber'], ['/futuros', 'Compromissos futuros'],
 ]
 export function AppLayout() {
   const { user, logout } = useAuth()
@@ -14,7 +17,8 @@ export function AppLayout() {
     <a className="skip-link" href="#page-content">Pular para o conteúdo</a>
     <aside className="sidebar">
       <NavLink to="/" className="brand">alex<span>finanças pessoais</span></NavLink>
-      <p className="eyebrow mt-12">SEU PLANEJAMENTO</p>
+      <ThemeToggle />
+      <p className="eyebrow mt-6">SEU PLANEJAMENTO</p>
       <nav aria-label="Navegação principal">
         {pages.map(([path, title]) => <NavLink key={path} to={path} end>{title}</NavLink>)}
       </nav>
@@ -24,6 +28,6 @@ export function AppLayout() {
         {error && <p role="alert" className="error">{error}</p>}
       </div>
     </aside>
-    <div id="page-content" className="page-content" tabIndex={-1}><Outlet /></div>
+    <div id="page-content" className="page-content" tabIndex={-1}><Outlet />{user && <WelcomeModal key={user.uid} uid={user.uid} />}</div>
   </div>
 }
