@@ -1,6 +1,6 @@
 # Alex — Finanças pessoais
 
-Base de uma aplicação pessoal responsiva: React + TypeScript + Vite, Tailwind CSS, React Router, React Hook Form + Zod e Firebase (Authentication, Firestore e Hosting). SDK web direto, sem API própria.
+Base de uma aplicação pessoal responsiva: React + TypeScript + Vite, Tailwind CSS, React Router, React Hook Form + Zod e Firebase (Authentication e Firestore), com hospedagem do site na Vercel. SDK web direto, sem API própria.
 
 ## Executar
 
@@ -30,6 +30,30 @@ npx firebase deploy --only firestore:rules,firestore:indexes
 Não há cadastro público na interface. As regras permitem que cada usuário autenticado leia e grave somente em users/{seu UID}; caminhos de outros usuários permanecem bloqueados.
 
 As regras locais só passam a proteger o projeto remoto depois do deploy. Regras anteriores do console permanecem vigentes até lá.
+
+## Hospedagem na Vercel
+
+O site está hospedado na [Vercel](https://vercel.com/). A plataforma oferece o plano **Hobby gratuito** para projetos pessoais e não comerciais, sujeito aos limites do plano. Para uso comercial, consulte as condições dos planos. O login e os dados continuam no Firebase.
+
+### Como hospedar
+
+1. Envie o projeto para um repositório Git. Na Vercel, escolha **Add New → Project** e importe o repositório.
+2. Selecione **Vite** como framework e a raiz do projeto. Configure instalação `npm ci`, build `npm run build` e saída `dist`. Use Node.js 22.x compatível com o requisito 22.12+ do projeto.
+3. Em **Environment Variables**, cadastre as seis variáveis `VITE_FIREBASE_*` de [.env.example](.env.example), com os valores do seu Firebase. Configure Production e, se utilizar, Preview. Não é necessário informar UID nem enviar o `.env` ao repositório.
+4. Para abrir ou atualizar rotas como `/conta` sem erro 404, crie `vercel.json` na raiz com:
+
+```json
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+```
+
+5. Clique em **Deploy**. No Firebase, confira **Authentication → Settings → Authorized domains** e adicione o domínio utilizado, como `seu-projeto.vercel.app` ou seu domínio próprio.
+6. Publique as regras e os índices do banco separadamente: `npx firebase deploy --only firestore:rules,firestore:indexes`. O deploy da Vercel não publica essas configurações.
+
+Com o repositório conectado, novos pushes na branch de produção geram novas publicações. Após alterar variáveis de ambiente, faça um novo deploy. Confira o login e atualize uma rota interna diretamente no navegador após publicar.
+
+Referências: [Vite na Vercel](https://vercel.com/docs/frameworks/frontend/vite), [variáveis de ambiente](https://vercel.com/docs/environment-variables) e [plano Hobby](https://vercel.com/docs/plans/hobby).
 
 ## Estrutura
 
@@ -76,7 +100,6 @@ O [guia de recorrências e recebimentos](docs/recurrences-and-receivables.md) de
 npm test
 npm run build
 npm run test:rules
-npm run deploy
 ```
 
-`npm run test:rules` exige Java 21+ para o emulador Firestore. Os testes de regras e transações são ignorados no `npm test` quando não há emulador; o comando específico inicia um emulador com projeto demo, sem usar dados de produção. O deploy publica regras, índices e a SPA em Firebase Hosting, com fallback das rotas para `index.html`. Não publica sozinho durante o desenvolvimento.
+`npm run test:rules` exige Java 21+ para o emulador Firestore. Os testes de regras e transações são ignorados no `npm test` quando não há emulador; o comando específico inicia um emulador com projeto demo, sem usar dados de produção. A publicação atual do site é feita pela Vercel, conforme o guia acima. O comando opcional `npm run deploy` permanece como alternativa para Firebase Hosting: publica regras, índices e o site no Firebase, e não na Vercel.
