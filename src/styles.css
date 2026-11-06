@@ -83,3 +83,29 @@ select:focus-visible { outline: 3px solid #61a58e; outline-offset: 3px; }
 .field-error { color: #a32e33; font-size: .8rem; margin-top: .35rem; }
 .notice { padding: .8rem; background: #f0f4ec; border-radius: .5rem; font-size: .8rem; line-height: 1.6; }
 @media(max-width: 640px) { .catalog-toolbar .search { width: 100%; } .catalog-list > li { padding: 1.2rem; } .row-actions { margin-left: auto; } .modal { padding: 1.25rem; } }
+
+.installment-preview { overflow-x: auto; padding: 1rem; border: 1px solid #dce2d7; border-radius: .6rem; }
+.installment-preview table { width: 100%; font-size: .8rem; border-collapse: collapse; margin-top: .6rem; }
+.installment-preview td, .installment-preview th { padding: .6rem .2rem; text-align: left; border-bottom: 1px solid #eef0eb; }
+.installment-preview td:last-child, .installment-preview th:last-child { text-align: right; }
+.checkbox-label { display: flex; align-items: center; gap: .6rem; font-size: .85rem; font-weight: 400; margin: 0; }
+.checkbox-label input { width: 1rem; height: 1rem; }
+input[readonly] { background: #f3f5ef; }
+button:disabled { cursor: not-allowed; }
+
+.invoice-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; max-width: 650px; }
+.invoice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 1.25rem; }
+.invoice-card { padding: 1.5rem; }
+.invoice-card-heading { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+.invoice-card-heading > div { flex: 1; min-width: 0; }
+.invoice-card-heading h2 { font-size: 1.1rem; overflow-wrap: anywhere; }
+.invoice-state { margin-left: auto; }
+.state-paid { background: #e0f0e5; color: #245b3a; }
+.state-overdue { background: #fff0e9; color: #9b3a27; }
+.invoice-total { display: block; font-size: 2rem; font-weight: 600; letter-spacing: -.04em; margin: 1.3rem 0 .5rem; }
+.invoice-actions { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; margin-top: 1.5rem; }
+.invoice-actions .primary { font-size: .85rem; padding: .65rem .9rem; }
+.invoice-timeline { margin-top: 1rem; border-left: 2px solid #dce7d8; padding-left: 1rem; }
+.invoice-timeline li { padding: .6rem 0 1rem; }
+.invoice-timeline strong { font-size: .85rem; }
+@media(max-width: 640px) { .invoice-filters { grid-template-columns: 1fr; } .invoice-card { padding: 1.2rem; } .invoice-actions > * { flex: 1; text-align: center; } }

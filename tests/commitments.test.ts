@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCommitments, outstandingTotal } from '../src/domain/commitments'
+import { buildCommitments, outstandingTotal, commitmentSituation } from '../src/domain/commitments'
 describe('consulta de compromissos persistidos', () => {
   const entries = [{ id: 'purchase', type: 'expense' as const, description: 'Internet' }]
   const charges = [{ id: 'part', entryId: 'purchase', amountCents: 10000, competence: '2026-11', dueDate: '2026-11-10', cardId: 'card', recurrenceId: 'internet' }]
@@ -17,4 +17,10 @@ describe('consulta de compromissos persistidos', () => {
     const view = buildCommitments(entries, charges, [], [])
     expect(outstandingTotal(view.outgoing, '2026-10')).toBe(0)
   })
+  it('calcula atraso sem persistir outro status e respeita liquidações', () => {
+    expect(commitmentSituation({ paid: false, income: false, dueDate: '2026-11-05' }, '2026-11-06')).toBe('Atrasado')
+    expect(commitmentSituation({ paid: false, income: true, dueDate: '2026-11-06' }, '2026-11-06')).toBe('Pendente')
+    expect(commitmentSituation({ paid: true, income: true, dueDate: '2026-11-05' }, '2026-11-06')).toBe('Recebido')
+  })
+
 })

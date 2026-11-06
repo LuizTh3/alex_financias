@@ -45,10 +45,232 @@ service cloud.firestore {
       allow create: if isOwner(userId) && validCategory(request.resource.data) && validCreation(request.resource.data);
       allow update: if isOwner(userId) && validCategory(request.resource.data) && validUpdate(request.resource.data);
     }
-    match /users/{userId}/{collectionName}/{documentId} {
-      // As próximas etapas liberam gravações com suas invariantes financeiras.
-      allow read: if isOwner(userId)
-        && collectionName in ['entries', 'installments', 'invoices', 'recurrences'];
+    function validId(value) {
+      return value is string && value.matches('^[A-Za-z0-9_-]{1,80}$');
+    }
+    function validMonth(value) {
+      return value is string && value.matches('^(19[0-9]{2}|[2-9][0-9]{3})-(0[1-9]|1[0-2])$');
+    }
+    function monthDays(month) {
+      let y = int(month.split('-')[0]);
+      let m = int(month.split('-')[1]);
+      return m == 2 ? (y % 400 == 0 || (y % 4 == 0 && y % 100 != 0) ? 29 : 28)
+        : (m in [4, 6, 9, 11] ? 30 : 31);
+    }
+    function civilDate(month, day) {
+      let d = day > monthDays(month) ? monthDays(month) : day;
+      return month + '-' + (d < 10 ? '0' : '') + string(d);
+    }
+    function validDate(value) {
+      return value is string && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && validMonth((value.split('-')[0] + '-' + value.split('-')[1])) && int(value.split('-')[2]) >= 1
+        && int(value.split('-')[2]) <= monthDays((value.split('-')[0] + '-' + value.split('-')[1]));
+    }
+    function shiftedMonth(month, offset) {
+      let y = int(month.split('-')[0]);
+      let m = int(month.split('-')[1]) - 1 + offset;
+      let resultMonth = m % 12 + 1;
+      return string(y + int(m / 12)) + '-' + (resultMonth < 10 ? '0' : '') + string(resultMonth);
+    }
+    function entryShape(data) {
+      return data.keys().hasAll(['type', 'description', 'totalCents', 'categoryId', 'purchaseDate', 'paymentMethod', 'cardId', 'installmentCount', 'firstCompetence', 'dueDay', 'revision', 'mutationId', 'deletedAt', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['type', 'description', 'totalCents', 'categoryId', 'purchaseDate', 'paymentMethod', 'cardId', 'installmentCount', 'firstCompetence', 'dueDay', 'revision', 'mutationId', 'deletedAt', 'createdAt', 'updatedAt'])
+        && data.type in ['expense', 'income'] && data.description is string
+        && data.description.size() >= 1 && data.description.size() <= 240
+        && data.description.matches('.*[^\\s].*') && !data.description.matches('^\\s.*|.*\\s$')
+        && data.installmentCount is int && data.installmentCount >= 1 && data.installmentCount <= 5
+        && data.totalCents is int && data.totalCents >= data.installmentCount && data.totalCents <= 999999999
+        && validId(data.categoryId) && validDate(data.purchaseDate)
+        && validMonth(data.firstCompetence) && validMonth(shiftedMonth(data.firstCompetence, data.installmentCount - 1))
+        && data.dueDay is int && data.dueDay >= 1 && data.dueDay <= 31
+        && ((data.paymentMethod == 'direct' && data.cardId == null)
+          || (data.paymentMethod == 'card' && data.type == 'expense' && validId(data.cardId)))
+        && data.revision is int && data.revision >= 1 && validId(data.mutationId)
+        && (data.deletedAt == null || data.deletedAt is timestamp)
+        && data.createdAt is timestamp && data.updatedAt is timestamp;
+    }
+    function categoryReference(userId, data) {
+      let category = get(/databases/$(database)/documents/users/$(userId)/categories/$(data.categoryId)).data;
+      return category.active == true && (category.scope == 'both' || category.scope == data.type);
+    }
+    function cardReference(userId, data) {
+      let card = get(/databases/$(database)/documents/users/$(userId)/cards/$(data.cardId)).data;
+      return card.active == true && data.dueDay == card.dueDay;
+    }
+    function referencesAllowed(userId, data, previous) {
+      return ((data.categoryId == previous.categoryId && data.type == previous.type) || categoryReference(userId, data))
+        && (data.cardId == null || (data.cardId == previous.cardId ? data.dueDay == previous.dueDay : cardReference(userId, data)));
+    }
+    function partSlot(userId, entryId, data, index) {
+      let path = /databases/$(database)/documents/users/$(userId)/installments/$(entryId + '__' + string(index));
+      return data.deletedAt == null && index <= data.installmentCount
+        ? (getAfter(path).data.revision == data.revision && getAfter(path).data.updatedAt == request.time)
+        : !existsAfter(path);
+    }
+    function completeSchedule(userId, entryId, data) {
+      return partSlot(userId, entryId, data, 1) && partSlot(userId, entryId, data, 2)
+        && partSlot(userId, entryId, data, 3) && partSlot(userId, entryId, data, 4)
+        && partSlot(userId, entryId, data, 5);
+    }
+    function invoiceAcknowledges(userId, cardId, competence, entryId, revision) {
+      let invoice = cardId == null ? null : getAfter(/databases/$(database)/documents/users/$(userId)/invoices/$(cardId + '__' + competence)).data;
+      return cardId == null || (invoice.status == 'pending' && invoice.updatedAt == request.time
+        && invoice.lastEntryId == entryId && invoice.lastEntryRevision == revision);
+    }
+    function editablePart(userId, data) {
+      return data.status in [null, 'pending'] && data.settledAt == null
+        && invoiceAcknowledges(userId, data.cardId, data.competence, data.entryId, data.revision + 1);
+    }
+    function partMatchesEntry(userId, partId, data) {
+      let entry = getAfter(/databases/$(database)/documents/users/$(userId)/entries/$(data.entryId)).data;
+      return entry.deletedAt == null && entry.updatedAt == request.time && data.revision == entry.revision
+        && partId == data.entryId + '__' + string(data.index)
+        && data.index is int && data.index >= 1 && data.index <= entry.installmentCount
+        && data.count == entry.installmentCount
+        && data.amountCents is int && data.amountCents == int(entry.totalCents / entry.installmentCount) + (data.index <= entry.totalCents % entry.installmentCount ? 1 : 0)
+        && data.competence == shiftedMonth(entry.firstCompetence, data.index - 1)
+        && data.cardId == entry.cardId && data.recurrenceId == null && data.settledAt == null
+        && (data.cardId == null ? data.status == 'pending' : data.status == null)
+        && (data.cardId == null ? data.dueDate == civilDate(data.competence, entry.dueDay)
+          : data.dueDate == getAfter(/databases/$(database)/documents/users/$(userId)/invoices/$(data.cardId + '__' + data.competence)).data.dueDate)
+        && invoiceAcknowledges(userId, data.cardId, data.competence, data.entryId, data.revision);
+    }
+    function partShape(data) {
+      return data.keys().hasAll(['entryId', 'revision', 'index', 'count', 'amountCents', 'competence', 'dueDate', 'cardId', 'recurrenceId', 'status', 'settledAt', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['entryId', 'revision', 'index', 'count', 'amountCents', 'competence', 'dueDate', 'cardId', 'recurrenceId', 'status', 'settledAt', 'createdAt', 'updatedAt'])
+        && validId(data.entryId) && data.revision is int && data.count is int
+        && data.createdAt is timestamp && data.updatedAt == request.time;
+    }
+    function partCanBeRemoved(userId, data) {
+      let entry = getAfter(/databases/$(database)/documents/users/$(userId)/entries/$(data.entryId)).data;
+      return editablePart(userId, data) && entry.updatedAt == request.time && entry.revision == data.revision + 1
+        && (entry.deletedAt == request.time || data.index > entry.installmentCount);
+    }
+    match /users/{userId}/entries/{entryId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validId(entryId) && entryShape(request.resource.data)
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && request.resource.data.deletedAt == null && request.resource.data.revision == 1
+        && referencesAllowed(userId, request.resource.data, {'categoryId': '', 'type': '', 'cardId': null, 'dueDay': 0})
+        && completeSchedule(userId, entryId, request.resource.data);
+      allow update: if isOwner(userId) && resource.data.deletedAt == null && entryShape(request.resource.data)
+        && validUpdate(request.resource.data) && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.mutationId != resource.data.mutationId
+        && (request.resource.data.deletedAt == null
+          ? referencesAllowed(userId, request.resource.data, resource.data)
+          : (request.resource.data.deletedAt == request.time && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt', 'updatedAt', 'revision', 'mutationId'])))
+        && completeSchedule(userId, entryId, request.resource.data);
+    }
+    match /users/{userId}/installments/{partId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && partShape(request.resource.data)
+        && request.resource.data.createdAt == request.time && partMatchesEntry(userId, partId, request.resource.data);
+      allow update: if isOwner(userId) && partShape(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.entryId == resource.data.entryId && request.resource.data.index == resource.data.index
+        && request.resource.data.revision == resource.data.revision + 1
+        && editablePart(userId, resource.data) && partMatchesEntry(userId, partId, request.resource.data);
+      allow delete: if isOwner(userId) && partCanBeRemoved(userId, resource.data);
+    }
+    function invoiceShape(data) {
+      return data.keys().hasAll(['cardId', 'competence', 'dueDate', 'status', 'paidAt', 'paidAmountCents', 'originInstallmentId', 'totalCents', 'chargeCount', 'revision', 'lastMutationId', 'lastEntryId', 'lastEntryRevision', 'lastEventId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['cardId', 'competence', 'dueDate', 'status', 'paidAt', 'paidAmountCents', 'originInstallmentId', 'totalCents', 'chargeCount', 'revision', 'lastMutationId', 'lastEntryId', 'lastEntryRevision', 'lastEventId', 'createdAt', 'updatedAt'])
+        && validId(data.cardId) && validMonth(data.competence) && validDate(data.dueDate)
+        && data.totalCents is int && data.totalCents >= 0 && data.totalCents <= 999999999999
+        && data.chargeCount is int && data.chargeCount >= 0
+        && (data.chargeCount == 0 ? data.totalCents == 0 : data.totalCents >= data.chargeCount)
+        && data.revision is int && data.revision >= 1 && validId(data.lastMutationId)
+        && validId(data.lastEntryId) && data.lastEntryRevision is int && data.lastEntryRevision >= 1
+        && (data.lastEventId == null || validId(data.lastEventId))
+        && data.createdAt is timestamp && data.updatedAt == request.time
+        && (data.status == 'pending' ? data.paidAt == null && data.paidAmountCents == null
+          : data.status == 'paid' && data.paidAt is timestamp && data.paidAmountCents == data.totalCents && data.totalCents > 0);
+    }
+    function previousEntry(userId, entryId) {
+      let path = /databases/$(database)/documents/users/$(userId)/entries/$(entryId);
+      return exists(path) ? get(path).data : {'cardId': null, 'deletedAt': null, 'firstCompetence': '1900-01', 'installmentCount': 1, 'totalCents': 0, 'revision': 0};
+    }
+    function contribution(entry, cardId, competence) {
+      let offset = (int(competence.split('-')[0]) - int(entry.firstCompetence.split('-')[0])) * 12
+        + int(competence.split('-')[1]) - int(entry.firstCompetence.split('-')[1]);
+      return entry.cardId == cardId && entry.deletedAt == null && offset >= 0 && offset < entry.installmentCount
+        ? {'amount': int(entry.totalCents / entry.installmentCount) + (offset < entry.totalCents % entry.installmentCount ? 1 : 0), 'count': 1}
+        : {'amount': 0, 'count': 0};
+    }
+    function balanceChange(userId, data, oldTotal, oldCount) {
+      let before = previousEntry(userId, data.lastEntryId);
+      let after = getAfter(/databases/$(database)/documents/users/$(userId)/entries/$(data.lastEntryId)).data;
+      let oldPart = contribution(before, data.cardId, data.competence);
+      let newPart = contribution(after, data.cardId, data.competence);
+      return after.updatedAt == request.time && after.revision == before.revision + 1
+        && data.lastEntryRevision == after.revision && data.lastMutationId == after.mutationId
+        && (oldPart.count > 0 || newPart.count > 0)
+        && data.totalCents == oldTotal - oldPart.amount + newPart.amount
+        && data.chargeCount == oldCount - oldPart.count + newPart.count;
+    }
+    function newInvoice(userId, invoiceKey, data) {
+      let part = getAfter(/databases/$(database)/documents/users/$(userId)/installments/$(data.originInstallmentId)).data;
+      let entry = getAfter(/databases/$(database)/documents/users/$(userId)/entries/$(data.lastEntryId)).data;
+      return invoiceShape(data) && invoiceKey == data.cardId + '__' + data.competence
+        && data.createdAt == request.time && data.revision == 1 && data.lastEventId == null
+        && data.status == 'pending' && data.dueDate == civilDate(data.competence, entry.dueDay)
+        && part.entryId == data.lastEntryId && part.cardId == data.cardId
+        && part.competence == data.competence && part.dueDate == data.dueDate && part.updatedAt == request.time
+        && balanceChange(userId, data, 0, 0);
+    }
+    function aggregateUpdate(userId, data) {
+      return resource.data.status == 'pending' && data.status == 'pending'
+        && data.diff(resource.data).affectedKeys().hasOnly(['totalCents', 'chargeCount', 'revision', 'lastMutationId', 'lastEntryId', 'lastEntryRevision', 'updatedAt'])
+        && balanceChange(userId, data, resource.data.totalCents, resource.data.chargeCount);
+    }
+    function eventShape(data) {
+      return data.keys().hasAll(['invoiceId', 'cardId', 'competence', 'dueDate', 'type', 'amountCents', 'invoiceRevision', 'paymentEventId', 'paidAt', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['invoiceId', 'cardId', 'competence', 'dueDate', 'type', 'amountCents', 'invoiceRevision', 'paymentEventId', 'paidAt', 'createdAt', 'updatedAt'])
+        && data.type in ['payment', 'reversal'] && data.amountCents is int && data.amountCents > 0
+        && data.amountCents <= 999999999999 && data.invoiceRevision is int
+        && validId(data.paymentEventId) && data.paidAt is timestamp
+        && data.createdAt == request.time && data.updatedAt == request.time;
+    }
+    function eventMatches(userId, invoiceKey, eventId, before, after) {
+      let event = getAfter(/databases/$(database)/documents/users/$(userId)/invoiceEvents/$(eventId)).data;
+      return eventShape(event) && event.invoiceId == invoiceKey && event.cardId == before.cardId
+        && event.competence == before.competence && event.dueDate == before.dueDate
+        && event.invoiceRevision == after.revision
+        && (before.status == 'pending'
+          ? event.type == 'payment' && event.amountCents == before.totalCents && event.paidAt == request.time && event.paymentEventId == eventId
+          : event.type == 'reversal' && event.amountCents == before.paidAmountCents && event.paidAt == before.paidAt && event.paymentEventId == before.lastEventId);
+    }
+    function paymentUpdate(userId, invoiceKey, data) {
+      return data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidAt', 'paidAmountCents', 'revision', 'lastMutationId', 'lastEventId', 'updatedAt'])
+        && data.lastEventId == data.lastMutationId && validId(data.lastEventId)
+        && (resource.data.status == 'pending'
+          ? (data.status == 'paid' && resource.data.chargeCount > 0 && data.paidAt == request.time && data.paidAmountCents == resource.data.totalCents)
+          : (resource.data.status == 'paid' && data.status == 'pending' && data.paidAt == null && data.paidAmountCents == null))
+        && eventMatches(userId, invoiceKey, data.lastEventId, resource.data, data);
+    }
+    match /users/{userId}/invoices/{invoiceKey} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && newInvoice(userId, invoiceKey, request.resource.data);
+      allow update: if isOwner(userId) && invoiceShape(request.resource.data) && validUpdate(request.resource.data)
+        && request.resource.data.revision == resource.data.revision + 1 && request.resource.data.lastMutationId != resource.data.lastMutationId
+        && (aggregateUpdate(userId, request.resource.data) || paymentUpdate(userId, invoiceKey, request.resource.data));
+    }
+    match /users/{userId}/invoiceEvents/{eventId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validId(eventId) && eventShape(request.resource.data)
+        && validEventTransition(userId, eventId, request.resource.data);
+    }
+    function validEventTransition(userId, eventId, event) {
+      let before = get(/databases/$(database)/documents/users/$(userId)/invoices/$(event.invoiceId)).data;
+      let after = getAfter(/databases/$(database)/documents/users/$(userId)/invoices/$(event.invoiceId)).data;
+      return event.invoiceId == before.cardId + '__' + before.competence
+        && after.lastEventId == eventId && after.lastMutationId == eventId && after.updatedAt == request.time
+        && after.revision == before.revision + 1
+        && (event.type == 'payment' ? before.status == 'pending' && after.status == 'paid' : before.status == 'paid' && after.status == 'pending')
+        && eventMatches(userId, event.invoiceId, eventId, before, after);
+    }
+    match /users/{userId}/recurrences/{recurrenceId} {
+      allow read: if isOwner(userId);
     }
     match /{document=**} {
       allow read, write: if false;

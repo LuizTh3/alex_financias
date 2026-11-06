@@ -1,6 +1,6 @@
 # Contrato financeiro do MVP
 
-Este documento registra as regras acordadas para as próximas etapas. A entrega atual implementa os cadastros de cartões e categorias, suas transações e regras de acesso. Os fluxos financeiros de escrita abaixo ainda não estão habilitados.
+Este documento registra as regras acordadas para as próximas etapas. A entrega atual implementa cartões/categorias e o motor de lançamentos, parcelas, centavos, competências e repositórios. Faturas agora também têm listagem mensal, histórico e pagamento integral reversível; pagamentos diretos e recorrências ainda não estão habilitados. Consulte os detalhes em [Motor financeiro](financial-engine.md).
 
 ## Calendário e auditoria
 
@@ -15,9 +15,10 @@ Este documento registra as regras acordadas para as próximas etapas. A entrega 
 | --- | --- |
 | cards | name, color (`#RRGGBB`), closingDay (inteiro 1–31), dueDay (inteiro 1–31), active, createdAt, updatedAt |
 | categories | name, scope (`expense`, `income`, `both`), active, createdAt, updatedAt |
-| entries | type (`expense`/`income`), description, totalCents, categoryId, purchaseDate, paymentMethod (`direct`/`card`), cardId opcional, installmentCount, firstCompetence, createdAt, updatedAt |
-| installments | entryId, index (base 1), count, amountCents, competence, dueDate, cardId opcional, recurrenceId opcional, status/settledAt para pagamento direto ou recebimento, createdAt, updatedAt |
-| invoices | ID determinístico cardId+competence; cardId, competence, dueDate, status, paidAt, paidAmountCents, createdAt, updatedAt |
+| entries | type (`expense`/`income`), description, totalCents, categoryId, purchaseDate, paymentMethod (`direct`/`card`), cardId opcional, installmentCount, firstCompetence, dueDay, revision, mutationId, deletedAt, createdAt, updatedAt |
+| installments | entryId, revision, index (base 1), count, amountCents, competence, dueDate, cardId opcional, recurrenceId opcional, status/settledAt para pagamento direto ou recebimento, createdAt, updatedAt |
+| invoices | ID determinístico cardId+competence; cardId, competence, dueDate, status, paidAt, paidAmountCents, originInstallmentId, totalCents, chargeCount, revision, lastMutationId, lastEntryId, lastEntryRevision, lastEventId, createdAt, updatedAt |
+| invoiceEvents | invoiceId, cardId, competence, dueDate, type (payment/reversal), amountCents, invoiceRevision, paymentEventId, paidAt, createdAt, updatedAt |
 | recurrences | description, amountCents, categoryId, paymentMethod, cardId opcional, dueDay, startCompetence, endCompetence, active, versões com início de vigência, createdAt, updatedAt |
 
 Status persistidos em inglês: `pending`/`paid` para saídas, `pending`/`received` para entradas. Faturas: `pending`/`paid`; `paidAt` e `paidAmountCents` nulos antes de pagamento. Cobranças em cartão derivam o status da fatura; não têm quitação independente. Atraso é calculado a partir do vencimento civil e do status pendente.
@@ -33,7 +34,7 @@ Status persistidos em inglês: `pending`/`paid` para saídas, `pending`/`receive
 - Edição e arquivamento validam `updatedAt` em transação. Uma versão alterada por outra aba exige reabrir o formulário para evitar perda silenciosa de alterações.
 - As regras autorizam somente o UID pessoal em seu próprio caminho, validam campos/tipos, exigem timestamps do servidor e preservam `createdAt`. Senhas e campos extras são rejeitados.
 
-## Compras, faturas e parcelas — próxima etapa
+## Compras e parcelas — motor e pagamento integral de faturas implementados
 
 - À vista no cartão é uma cobrança em fatura, não pagamento imediato. A primeira competência é sugerida conforme compra, fechamento e vencimento, exibida antes de salvar e corrigível manualmente. Compra no fechamento é ambígua conforme o banco. Sempre persistir a competência escolhida.
 - Uma compra origina uma ou mais cobranças previamente materializadas; fatura soma cobranças por cartão+competência. Pagamento integral manual liquida a fatura e não cria outra despesa. Sem pagamentos parciais, rotativo ou juros no MVP.
@@ -51,6 +52,6 @@ Status persistidos em inglês: `pending`/`paid` para saídas, `pending`/`receive
 
 ## Limites desta entrega
 
-As consultas iniciais já leem os nomes canônicos `entries`, `installments` e `invoices`, somam cartão pela fatura uma única vez e usam quitação derivada no filtro de fixos. Ainda não geram compras, parcelas, recorrências, projeções de modelos recorrentes ou pagamentos; as regras negam essas gravações até que as invariantes sejam implementadas e testadas. Não há migração automática de documentos no formato antigo da inicialização.
+As consultas leem `entries`, `installments` e `invoices`, somam o cartão pela fatura uma única vez e usam quitação derivada no filtro de fixos. Lançamentos e suas parcelas agora são gravados atomicamente, com materialização de cabeçalhos de fatura, edição do conjunto e exclusão com tombstone. Os dados adicionais e as invariantes estão no [motor financeiro](financial-engine.md). Pagamento integral e reversão de faturas estão disponíveis, com registros imutáveis em `invoiceEvents`; consulte [faturas e histórico](invoices.md). Pagamentos diretos, recorrências e projeções de modelos recorrentes permanecem para a próxima etapa. Não há migração automática de documentos no formato antigo da inicialização.
 
 Referências técnicas: [transações Firestore](https://firebase.google.com/docs/firestore/manage-data/transactions), [validação de campos nas regras](https://firebase.google.com/docs/firestore/security/rules-fields).

@@ -4,9 +4,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { currentMonth, shiftMonth, formatMonth, formatMoney } from '../domain/finance'
 import { subscribeTo, type RecordOf } from '../repositories/financeRepository'
 import { useCatalog } from '../hooks/useCatalog'
-import { buildCommitments, outstandingTotal } from '../domain/commitments'
+import { buildCommitments, outstandingTotal, commitmentSituation } from '../domain/commitments'
 
-// Consultas de lançamentos persistidos. A geração de parcelas/recorrências será adicionada com seus formulários.
+// Consultas de lançamentos e cobranças persistidos; modelos recorrentes serão integrados em sua etapa.
 export function DashboardPage() {
   const { user } = useAuth()
   const [month, setMonth] = useState(currentMonth)
@@ -51,7 +51,7 @@ export function DashboardPage() {
         <article className="highlight"><p>Saldo previsto dos compromissos</p><strong>{formatMoney(total(incoming) - total(outgoing))}</strong><span>Valores a receber menos valores a pagar</span></article>
       </section>
       <section className="panel"><div className="panel-heading"><h2>{pathname === '/futuros' ? 'Após ' + formatMonth(month) : 'Compromissos do mês'}</h2><span className="badge">{visible.length} registros</span></div>
-        {visible.length ? <ul className="records">{visible.map(item => <li key={item.id}><div><strong>{item.description}</strong><p className="muted text-sm">{item.dueDate.split('-').reverse().join('/')} · {item.paid ? item.income ? 'Recebido' : 'Pago' : 'Pendente'}</p></div><strong>{formatMoney(item.amountCents)}</strong></li>)}</ul>
+        {visible.length ? <ul className="records">{visible.map(item => <li key={item.id}><div><strong>{item.description}</strong><p className="muted text-sm">{item.dueDate.split('-').reverse().join('/')} · {commitmentSituation(item)}</p></div><strong>{formatMoney(item.amountCents)}</strong></li>)}</ul>
           : <div className="empty"><span className="empty-icon">◎</span><h3>{emptyText}</h3><p className="muted">Seus registros aparecerão aqui quando forem adicionados.</p></div>}
       </section>
     </>}

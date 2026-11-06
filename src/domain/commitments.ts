@@ -1,8 +1,9 @@
+import { todayCivil } from './calendar'
 // Apenas projeção de registros persistidos; não materializa recorrências ou cobranças.
 export type EntrySummary = { id: string; type: 'expense' | 'income'; description: string }
 export type InstallmentSummary = {
   id: string; entryId: string; amountCents: number; competence: string; dueDate: string;
-  cardId?: string; recurrenceId?: string; status?: 'pending' | 'paid' | 'received';
+  cardId?: string | null; recurrenceId?: string | null; status?: 'pending' | 'paid' | 'received' | null;
 }
 export type InvoiceSummary = { cardId: string; competence: string; dueDate: string; status: 'pending' | 'paid' }
 export type CommitmentView = {
@@ -23,7 +24,7 @@ export function buildCommitments(
       id: `installment:${item.id}`, description: entry?.description ?? 'Cobrança recorrente', amountCents: item.amountCents,
       dueDate: invoice?.dueDate ?? item.dueDate,
       paid: item.cardId ? invoice?.status === 'paid' : item.status === 'paid' || item.status === 'received',
-      competence: item.competence, income: entry?.type === 'income', fixed: !!item.recurrenceId, cardId: item.cardId,
+      competence: item.competence, income: entry?.type === 'income', fixed: !!item.recurrenceId, cardId: item.cardId ?? undefined,
     }
   })
   const groups = new Map<string, CommitmentView>()
@@ -42,4 +43,9 @@ export function buildCommitments(
 }
 export function outstandingTotal(items: CommitmentView[], competence: string): number {
   return items.filter(item => item.competence === competence && !item.paid).reduce((sum, item) => sum + item.amountCents, 0)
+}
+
+export function commitmentSituation(item: Pick<CommitmentView, 'paid' | 'income' | 'dueDate'>, today = todayCivil()) {
+  if (item.paid) return item.income ? 'Recebido' : 'Pago'
+  return item.dueDate < today ? 'Atrasado' : 'Pendente'
 }

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Link } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { scopeLabels, type CatalogKind } from '../domain/catalog'
 import { formatTimestamp } from '../domain/finance'
@@ -57,6 +58,7 @@ export function CatalogPage({ kind }: { kind: CatalogKind }) {
             </div>
           </div>
           <div className="row-actions">
+            {isCards && <Link className="secondary" to={`/faturas?cartao=${encodeURIComponent(row.id)}`}>Faturas</Link>}
             <button className="secondary" aria-label={`Editar ${row.name}`} onClick={() => { setMessage(''); setEditor({ record: row }) }}>Editar</button>
             <button className="secondary" aria-label={`${row.active ? 'Arquivar' : 'Reativar'} ${row.name}`} onClick={() => { setActionError(null); setMessage(''); setConfirmation(row) }}>{row.active ? 'Arquivar' : 'Reativar'}</button>
           </div>

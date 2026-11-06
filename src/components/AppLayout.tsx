@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 const pages = [
-  ['/', 'Visão geral'], ['/cartoes', 'Cartões'], ['/categorias', 'Categorias'],
+  ['/', 'Visão geral'], ['/lancamentos', 'Lançamentos'], ['/cartoes', 'Cartões'], ['/categorias', 'Categorias'],
   ['/faturas', 'Faturas'], ['/despesas-fixas', 'Despesas fixas'],
   ['/a-receber', 'A receber'], ['/futuros', 'Compromissos futuros'],
 ]
