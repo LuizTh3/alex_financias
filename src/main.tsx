@@ -6,9 +6,26 @@ import { configurationError } from './lib/firebase'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { AppLayout } from './components/AppLayout'
+import { CatalogPage } from './pages/CatalogPage'
 import './styles.css'
 function App() {
   if (configurationError) return <main className="p-10" role="alert">{configurationError}</main>
-  return <AuthProvider><BrowserRouter><Routes><Route path="/entrar" element={<LoginPage />} /><Route element={<ProtectedRoute />}>{['/', '/cartoes', '/faturas', '/despesas-fixas', '/a-receber', '/futuros'].map(path => <Route key={path} path={path} element={<DashboardPage />} />)}</Route><Route path="*" element={<Navigate to="/" replace />} /></Routes></BrowserRouter></AuthProvider>
+  return <AuthProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/entrar" element={<LoginPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route path="/cartoes" element={<CatalogPage key="cards" kind="cards" />} />
+            <Route path="/categorias" element={<CatalogPage key="categories" kind="categories" />} />
+            {['/', '/faturas', '/despesas-fixas', '/a-receber', '/futuros'].map(path =>
+              <Route key={path} path={path} element={<DashboardPage />} />)}
+          </Route>
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  </AuthProvider>
 }
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)

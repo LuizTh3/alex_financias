@@ -2,6 +2,54 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isOwner(userId) {
+      return request.auth != null
+        && request.auth.uid == 'Jhi9dIY92RbShnVhAVl5CaHuFJK2'
+        && request.auth.uid == userId;
+    }
+    function validName(name) {
+      return name is string && name.size() > 0 && name.size() <= 120
+        && name.matches('.*[^\\s].*') && !name.matches('^\\s.*|.*\\s$');
+    }
+    function validMetadata(data) {
+      return data.active is bool && data.createdAt is timestamp && data.updatedAt is timestamp;
+    }
+    function validCard(data) {
+      return data.keys().hasAll(['name', 'color', 'closingDay', 'dueDay', 'active', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['name', 'color', 'closingDay', 'dueDay', 'active', 'createdAt', 'updatedAt'])
+        && validName(data.name) && validMetadata(data)
+        && data.color is string && data.color.matches('^#[0-9a-fA-F]{6}$')
+        && data.closingDay is int && data.closingDay >= 1 && data.closingDay <= 31
+        && data.dueDay is int && data.dueDay >= 1 && data.dueDay <= 31;
+    }
+    function validCategory(data) {
+      return data.keys().hasAll(['name', 'scope', 'active', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['name', 'scope', 'active', 'createdAt', 'updatedAt'])
+        && validName(data.name) && validMetadata(data)
+        && data.scope in ['expense', 'income', 'both'];
+    }
+    function validCreation(data) {
+      return data.active == true && data.createdAt == request.time && data.updatedAt == request.time;
+    }
+    function validUpdate(data) {
+      return data.createdAt == resource.data.createdAt && data.updatedAt == request.time;
+    }
+    match /users/{userId}/cards/{cardId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validCard(request.resource.data) && validCreation(request.resource.data);
+      allow update: if isOwner(userId) && validCard(request.resource.data) && validUpdate(request.resource.data);
+      // Sem exclusão física: arquivar preserva os vínculos históricos.
+    }
+    match /users/{userId}/categories/{categoryId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validCategory(request.resource.data) && validCreation(request.resource.data);
+      allow update: if isOwner(userId) && validCategory(request.resource.data) && validUpdate(request.resource.data);
+    }
+    match /users/{userId}/{collectionName}/{documentId} {
+      // As próximas etapas liberam gravações com suas invariantes financeiras.
+      allow read: if isOwner(userId)
+        && collectionName in ['entries', 'installments', 'invoices', 'recurrences'];
+    }
     match /{document=**} {
       allow read, write: if false;
     }

@@ -33,16 +33,22 @@ As regras locais só passam a proteger o projeto remoto depois do deploy. Regras
 
 ## Estrutura
 
-- `src/pages`: login e consultas iniciais (visão geral, cartões, faturas, despesas fixas, recebíveis e futuros).
+- `src/pages`: login, cadastros de cartões/categorias e consultas iniciais.
 - `src/components`: componentes compartilhados e proteção de rotas.
 - `src/contexts`: sessão com hooks/context; persistência da sessão no navegador por aba.
-- `src/domain`: modelos e cálculos puros. Dinheiro em centavos inteiros; datas de vencimento `YYYY-MM-DD`; meses `YYYY-MM`.
-- `src/repositories`: assinaturas Firestore tipadas e validadas com Zod.
+- `src/domain`: validações, modelos e cálculos puros. Dinheiro em centavos inteiros; datas de vencimento `YYYY-MM-DD`; meses `YYYY-MM`.
+- `src/repositories`: assinaturas validadas com Zod e transações Firestore de cartões/categorias.
 - `src/lib`: inicialização do SDK e validação da configuração.
 
-Dados em `/users/{uid}/cards/{id}`, `/invoices/{id}`, `/fixedExpenses/{id}` e `/receivables/{id}` (todos os caminhos de coleção sob `/users/{uid}`). Documentos não armazenam o ID, que vem do Firestore. Consulte os tipos em `src/domain/finance.ts` e os schemas em `src/repositories/financeRepository.ts`.
+## Cartões e categorias
 
-A navegação mensal consulta vencimentos; compromissos futuros são pendências com mês posterior ao selecionado. O saldo exibido considera apenas compromissos, sem representar saldo bancário. Despesas fixas ainda não geram recorrências automaticamente. Esta entrega inicial prepara autenticação e consultas; formulários de inclusão/edição, parcelamento e regras de fechamento de cartão ficam para a próxima etapa. Não há dados fictícios.
+Acesse **Cartões** ou **Categorias** para cadastrar e editar. Arquivamento tem confirmação e preserva os vínculos; os filtros Ativos/Arquivados/Todos permitem reativar cadastros. Cartões têm nome, cor, fechamento e vencimento; categorias têm nome e aplicação em despesas, recebimentos ou ambos.
+
+Cada gravação usa `serverTimestamp()`. Edições e arquivamentos usam transações e detectam versões alteradas por outra aba. IDs estáveis por formulário e bloqueio de envio impedem duplicação em tentativas repetidas. Horários são exibidos em `America/Rio_Branco`.
+
+As regras locais agora autorizam cartões e categorias para o UID pessoal, validam os campos, protegem `createdAt` e negam exclusão física. As demais coleções financeiras permitem somente leitura pelo titular. É necessário publicar `firestore.rules` no Firebase para os formulários funcionarem no projeto remoto.
+
+O [contrato financeiro](docs/financial-contract.md) registra o modelo Firestore, os comportamentos já implementados e os requisitos acordados para compras, parcelas, pagamentos e recorrências. Esses fluxos de escrita ficam para as próximas etapas. Não há dados fictícios nem migração automática de documentos antigos.
 
 ## Validação e publicação
 
@@ -53,4 +59,4 @@ npm run test:rules
 npm run deploy
 ```
 
-`npm run test:rules` exige Java 21+ para o emulador Firestore. Os testes de regras são ignorados no `npm test` quando não há emulador; o comando específico inicia um emulador isolado. O deploy publica regras, índices e a SPA em Firebase Hosting, com fallback das rotas para `index.html`. Não publica sozinho durante o desenvolvimento.
+`npm run test:rules` exige Java 21+ para o emulador Firestore. Os testes de regras e transações são ignorados no `npm test` quando não há emulador; o comando específico inicia um emulador com projeto demo, sem usar dados de produção. O deploy publica regras, índices e a SPA em Firebase Hosting, com fallback das rotas para `index.html`. Não publica sozinho durante o desenvolvimento.
