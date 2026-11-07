@@ -1,7 +1,8 @@
+import { generateKeyPairSync } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from 'vitest'
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
-import { initializeApp, deleteApp, type App } from 'firebase-admin/app'
+import { initializeApp, deleteApp, cert, type App } from 'firebase-admin/app'
 import { getFirestore, Timestamp as AdminTimestamp, type Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { doc, getDoc, type Firestore } from 'firebase/firestore'
 const state = vi.hoisted(() => ({ db: null as Firestore | null }))
@@ -15,7 +16,11 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)('migração administrativa
   beforeAll(async () => {
     env = await initializeTestEnvironment({ projectId, firestore: { rules: readFileSync('firestore.rules', 'utf8') } })
     state.db = env.authenticatedContext(uid).firestore()
-    app = initializeApp({ projectId }, 'invoice-migration-tests'); database = getFirestore(app)
+    // Emulator-only credentials prevent ADC discovery and metadata-server requests.
+    if (!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST ?? '')) throw new Error('Use apenas o emulador local neste teste.')
+    vi.stubEnv('METADATA_SERVER_DETECTION', 'none')
+    const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } })
+    app = initializeApp({ projectId, credential: cert({ projectId, clientEmail: 'emulator@example.invalid', privateKey }) }, 'invoice-migration-tests'); database = getFirestore(app)
   })
   beforeEach(async () => {
     await env.clearFirestore()

@@ -1,5 +1,5 @@
 export const MAX_TOTAL_CENTS = 999_999_999
-export const MAX_INSTALLMENTS = 5
+export const MAX_INSTALLMENTS = 24
 export function assertCents(value: number): void {
   if (!Number.isSafeInteger(value) || value < 1 || value > MAX_TOTAL_CENTS) throw new Error('Informe um total entre R$ 0,01 e R$ 9.999.999,99.')
 }

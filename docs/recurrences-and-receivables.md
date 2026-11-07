@@ -47,7 +47,7 @@ Dias 29/30/31 ajustam ao fim do mês. Em cartão, uma nova ocorrência consulta 
 
 ## Recebimentos parcelados e histórico
 
-Em A receber, “Novo recebimento” abre um lançamento de entrada. Informe o valor **total** e de uma a cinco parcelas; R$ 100,00 em três gera R$ 33,34 + R$ 33,33 + R$ 33,33. Todas as parcelas futuras são persistidas no cadastro.
+Em A receber, “Novo recebimento” abre um lançamento de entrada. Informe o valor **total** e de uma a 24 parcelas; R$ 100,00 em três gera R$ 33,34 + R$ 33,33 + R$ 33,33. Todas as parcelas futuras são persistidas no cadastro.
 
 Cada parcela direta pode ser confirmada integralmente como received (entrada) ou paid (saída). As demais parcelas não são alteradas. Reversão exige confirmação e retorna somente essa parcela a pending. O atraso é calculado pelo vencimento civil, e horários são exibidos em America/Rio_Branco.
 

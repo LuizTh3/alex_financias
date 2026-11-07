@@ -52,7 +52,7 @@ O cabeçalho também tem `lastMutationId`, `lastEventId`, `lastEntryId` e `lastE
 - Apenas o UID pessoal em seu caminho; histórico também é privado.
 - Pagamento parcial, histórico isolado, datas falsas, alteração de vencimento e edição do histórico são negados pelo Firestore.
 - Fatura paga bloqueia inclusão, remoção ou alteração das cobranças. É preciso desfazer primeiro e editar em uma operação posterior; não é permitido combinar reversão e edição em um mesmo lote.
-- O limite de cinco parcelas por lançamento permanece. A edição que troca cartão/categoria e todas as competências continua coberta pelos testes de regras, agora incluindo os saldos antigos/novos.
+- Parcelamentos aceitam até 24 parcelas. Operações acima de cinco são gravadas por etapas verificadas, sem expor saldos parciais na interface; consulte o motor financeiro.
 - Saldo de uma fatura limitado a 999.999.999.999 centavos para preservar aritmética inteira segura. Total de cada lançamento continua limitado a 999.999.999 centavos.
 - Cabeçalhos vazios são preservados. Não representam dívida e o histórico de confirmações/reversões continua consultável.
 

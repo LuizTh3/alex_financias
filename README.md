@@ -76,7 +76,7 @@ O [contrato financeiro](docs/financial-contract.md) registra o modelo Firestore,
 
 ## Lançamentos e motor financeiro
 
-Acesse **Lançamentos** para criar despesas ou recebimentos, conferir a sugestão de competência e a prévia das parcelas, editar o conjunto completo ou excluir com confirmação. Dinheiro usa centavos inteiros; o total é dividido exatamente. Limite inicial de 5 parcelas por lançamento, considerando também as cotas de validação nas regras do Firestore.
+Acesse **Lançamentos** para criar despesas ou recebimentos, conferir a sugestão de competência e a prévia das parcelas, editar o conjunto completo ou excluir com confirmação. Dinheiro usa centavos inteiros; o total é dividido exatamente. Limite de 24 parcelas por lançamento. Operações acima de cinco parcelas são gravadas por etapas verificadas, com retomada após interrupções.
 
 O [motor financeiro](docs/financial-engine.md) documenta os cálculos, o limite, os comandos idempotentes, as transações, as revisões, a exclusão com auditoria e os bloqueios de parcelas/faturas liquidadas. As cobranças futuras são geradas no cadastro e ficam disponíveis nas consultas mensais. A confirmação integral/reversão de faturas já está disponível. Recorrências versionadas e confirmações diretas já estão integradas às consultas mensais.
 
@@ -111,3 +111,8 @@ Projeto open source sob a [licença MIT](LICENSE). Permite uso, modificação e 
 Versão atual: **0.2.0**. O projeto segue [Versionamento Semântico](https://semver.org/lang/pt-BR/): novas funcionalidades incrementam a versão menor e correções incrementam a versão de patch. A série `0.x` indica desenvolvimento inicial, sem compromisso de estabilidade definitiva. Consulte o [histórico de versões](CHANGELOG.md).
 
 O campo `private: true` no package.json apenas impede publicação acidental no npm; não altera a licença do código.
+
+
+### Parcelamentos até 24x
+
+Despesas e recebimentos aceitam de 1 a 24 parcelas. Operações que envolvem mais de cinco parcelas são salvas por etapas verificadas no Firestore. Durante a gravação, o sistema aguarda a conclusão para exibir os saldos; se houver interrupção, use **Retomar parcelamento**. Não é necessário backend nem migração dos dados atuais. Publique as novas regras do Firestore antes de atualizar o frontend.

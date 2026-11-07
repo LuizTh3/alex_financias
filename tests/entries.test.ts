@@ -22,7 +22,7 @@ describe('centavos e parcelas', () => {
     for (const value of ['1,005', '1.23', '-1', '0', '1e3', 'Infinity', '10000000,00']) expect(() => parseMoneyToCents(value)).toThrow()
   })
   it('rejeita zero, centavos fracionários, excesso de parcelas e parcelas de zero centavos', () => {
-    for (const [total, count] of [[0, 1], [100.1, 1], [1, 2], [10000, 6], [100, 1.5]]) expect(() => splitCents(total, count)).toThrow()
+    for (const [total, count] of [[0, 1], [100.1, 1], [1, 2], [10000, 25], [100, 1.5]]) expect(() => splitCents(total, count)).toThrow()
   })
   it('gera IDs estáveis, meses de calendário e vencimentos ajustados', () => {
     const parts = generateInstallments('entry', input)
@@ -56,4 +56,13 @@ describe('sugestão da primeira competência', () => {
     expect(suggestFirstCompetence('2026-02-28', 31, 5)).toEqual({ competence: '2026-03', ambiguousClosingDate: true })
     expect(suggestFirstCompetence('2026-11-05', 5, 12).ambiguousClosingDate).toBe(true)
   })
+})
+
+it('aceita 24 parcelas e preserva valores e meses até a última', () => {
+  const parts = generateInstallments('long', { ...input, installmentCount: 24, totalCents: 10001 })
+  expect(parts).toHaveLength(24)
+  expect(parts[23].id).toBe('long__24')
+  expect(parts[23].competence).toBe('2027-12')
+  expect(parts.reduce((sum, part) => sum + part.amountCents, 0)).toBe(10001)
+  expect(entryInputSchema.safeParse({ ...input, installmentCount: 25 }).success).toBe(false)
 })

@@ -1,3 +1,4 @@
+import { ScheduleGate } from './ScheduleGate'
 import { ThemeToggle } from './ThemeToggle'
 import { WelcomeModal } from './WelcomeModal'
 import { useState } from 'react'
@@ -28,6 +29,6 @@ export function AppLayout() {
         {error && <p role="alert" className="error">{error}</p>}
       </div>
     </aside>
-    <div id="page-content" className="page-content" tabIndex={-1}><Outlet />{user && <WelcomeModal key={user.uid} uid={user.uid} />}</div>
+    <div id="page-content" className="page-content" tabIndex={-1}>{user && <ScheduleGate key={user.uid} uid={user.uid}><Outlet /></ScheduleGate>}{user && <WelcomeModal key={user.uid} uid={user.uid} />}</div>
   </div>
 }

@@ -7,7 +7,7 @@ export class SettlementError extends Error {}
 export type SettlementCommand = { installmentId: string; mutationId: string; expectedEntryRevision: number; expectedSettlementRevision: number; expectedAmountCents: number; affectAccount?: boolean; action: 'confirm' | 'reverse' }
 export async function changeSettlement(uid: string, command: SettlementCommand) {
   if (!db || !uid) throw new SettlementError('Conta sem acesso às confirmações.')
-  z.string().regex(/^[A-Za-z0-9_-]{1,80}__[1-5]$/).parse(command.installmentId)
+  z.string().regex(/^[A-Za-z0-9_-]{1,80}__(?:[1-9]|1[0-9]|2[0-4])$/).parse(command.installmentId)
   z.string().regex(/^[A-Za-z0-9_-]{1,80}$/).parse(command.mutationId)
   const database = db
   const partRef = doc(database, 'users', uid, 'installments', command.installmentId)

@@ -1,3 +1,4 @@
+import { startSchedule, removeSchedule } from './scheduleRepository'
 import { collection, doc, getDocFromServer, runTransaction, serverTimestamp, Timestamp, type Firestore, type Transaction } from 'firebase/firestore'
 import { z } from 'zod'
 import { occurrenceInput, occurrenceEntryId } from '../domain/recurrences'
@@ -66,6 +67,11 @@ export async function saveEntry(uid: string, command: SaveEntryCommand): Promise
   identifier.parse(command.entryId); identifier.parse(command.mutationId)
   if (!Number.isInteger(command.expectedRevision) || command.expectedRevision < 0) throw conflict()
   const input = entryInputSchema.parse(command.input)
+  const previousSnapshot = await getDocFromServer(doc(database, 'users', uid, 'entries', command.entryId))
+  if (input.installmentCount > 5 || previousSnapshot.exists() && previousSnapshot.data().installmentCount > 5) {
+    await startSchedule(uid, command)
+    return
+  }
   const ref = doc(database, 'users', uid, 'entries', command.entryId)
   try { await runTransaction(database, async transaction => {
     const snapshot = await transaction.get(ref)
@@ -147,6 +153,11 @@ export async function deleteEntry(uid: string, entryId: string, expectedRevision
   identifier.parse(entryId); identifier.parse(mutationId)
   const database = ownerDb(uid)
   const ref = doc(database, 'users', uid, 'entries', entryId)
+  const previous = await getDocFromServer(ref)
+  if (previous.exists() && previous.data().installmentCount > 5) {
+    await removeSchedule(uid, entryId, expectedRevision, mutationId)
+    return
+  }
   await runTransaction(database, async transaction => {
     const snapshot = await transaction.get(ref)
     if (!snapshot.exists()) throw conflict()

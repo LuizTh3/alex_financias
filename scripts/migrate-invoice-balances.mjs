@@ -30,7 +30,7 @@ export async function migrateInvoiceBalances(database, uid, { apply = false } = 
       for (const part of charges.docs) {
         const value = part.data(); const entry = entries.get(value.entryId)
         requireValue(entry && entry.deletedAt === null && entry.cardId === invoice.cardId && entry.paymentMethod === 'card', `Vínculo inválido: ${part.id}`)
-        requireValue(Number.isSafeInteger(entry.totalCents) && entry.totalCents > 0 && Number.isInteger(entry.installmentCount) && entry.installmentCount >= 1 && entry.installmentCount <= 5, `Lançamento inválido: ${value.entryId}`)
+        requireValue(Number.isSafeInteger(entry.totalCents) && entry.totalCents > 0 && Number.isInteger(entry.installmentCount) && entry.installmentCount >= 1 && entry.installmentCount <= 24, `Lançamento inválido: ${value.entryId}`)
         requireValue(Number.isInteger(value.index) && value.index >= 1 && value.index <= entry.installmentCount, `Índice inválido: ${part.id}`)
         const expected = Math.floor(entry.totalCents / entry.installmentCount) + (value.index <= entry.totalCents % entry.installmentCount ? 1 : 0)
         const [year, month] = entry.firstCompetence.split('-').map(Number)
@@ -45,7 +45,7 @@ export async function migrateInvoiceBalances(database, uid, { apply = false } = 
       requireValue(invoice.status === 'pending' || invoice.status === 'paid', `Situação inválida: ${snapshot.id}`)
       requireValue(invoice.createdAt instanceof Timestamp && invoice.updatedAt instanceof Timestamp, `Auditoria ausente: ${snapshot.id}`)
       requireValue(/^\d{4}-\d{2}-\d{2}$/.test(invoice.dueDate), `Vencimento inválido: ${snapshot.id}`)
-      const origin = /^(.*)__([1-5])$/.exec(invoice.originInstallmentId ?? '')
+      const origin = /^(.*)__([1-9]|1[0-9]|2[0-4])$/.exec(invoice.originInstallmentId ?? '')
       requireValue(origin && identifier.test(origin[1]), `Origem inválida: ${snapshot.id}`)
       const paid = invoice.status === 'paid'
       requireValue(paid ? chargeCount > 0 && invoice.paidAmountCents === totalCents && invoice.paidAt instanceof Timestamp

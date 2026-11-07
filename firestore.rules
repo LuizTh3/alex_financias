@@ -85,7 +85,7 @@ service cloud.firestore {
         && data.type in ['expense', 'income'] && data.description is string
         && data.description.size() >= 1 && data.description.size() <= 240
         && data.description.matches('.*[^\\s].*') && !data.description.matches('^\\s.*|.*\\s$')
-        && data.installmentCount is int && data.installmentCount >= 1 && data.installmentCount <= 5
+        && data.installmentCount is int && data.installmentCount >= 1 && data.installmentCount <= 24
         && data.totalCents is int && data.totalCents >= data.installmentCount && data.totalCents <= 999999999
         && validId(data.categoryId) && validDate(data.purchaseDate)
         && validMonth(data.firstCompetence) && validMonth(shiftedMonth(data.firstCompetence, data.installmentCount - 1))
@@ -108,6 +108,129 @@ service cloud.firestore {
       return ((data.categoryId == previous.categoryId && data.type == previous.type) || categoryReference(userId, data))
         && (data.cardId == null || (data.cardId == previous.cardId ? data.dueDay == previous.dueDay : cardReference(userId, data)));
     }
+
+    function operation(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)/scheduleOperations/current).data;
+    }
+    function activeOperation(userId) {
+      let path = /databases/$(database)/documents/users/$(userId)/scheduleOperations/current;
+      return exists(path) && get(path).data.state == 'active';
+    }
+    function idle(userId) {
+      let path = /databases/$(database)/documents/users/$(userId)/scheduleOperations/current;
+      return (!exists(path) || get(path).data.state == 'done') && (!existsAfter(path) || getAfter(path).data.state == 'done');
+    }
+    function advancing(userId) {
+      let before = operation(userId);
+      let after = getAfter(/databases/$(database)/documents/users/$(userId)/scheduleOperations/current).data;
+      return before.state == 'active' && before.cursor < before.size && after.cursor == before.cursor + 1 && after.state == 'active'
+        && after.updatedAt == request.time;
+    }
+    function slotContribution(entry, index, cardId, month) {
+      return entry != null && entry.deletedAt == null && index <= entry.installmentCount
+        && entry.cardId == cardId && shiftedMonth(entry.firstCompetence, index - 1) == month
+        ? {'amount': int(entry.totalCents / entry.installmentCount) + (index <= entry.totalCents % entry.installmentCount ? 1 : 0), 'count': 1}
+        : {'amount': 0, 'count': 0};
+    }
+    function stagedInvoice(userId, key, data, before) {
+      let op = operation(userId);
+      let index = op.cursor + 1;
+      let oldPart = slotContribution(op.before, index, data.cardId, data.competence);
+      let newPart = slotContribution(op.target, index, data.cardId, data.competence);
+      return advancing(userId) && key == data.cardId + '__' + data.competence && invoiceShape(data)
+        && data.lastEntryId == op.entryId && data.lastEntryRevision == op.target.revision
+        && data.lastMutationId == op.mutationId + '_' + string(index)
+        && (oldPart.count > 0 || newPart.count > 0)
+        && data.totalCents == before.totalCents - oldPart.amount + newPart.amount
+        && data.chargeCount == before.chargeCount - oldPart.count + newPart.count
+        && data.revision == before.revision + 1 && before.status == 'pending' && data.status == 'pending';
+    }
+    function stagedNewInvoice(userId, key, data) {
+      let op = operation(userId);
+      return stagedInvoice(userId, key, data, {'totalCents': 0, 'chargeCount': 0, 'revision': 0, 'status': 'pending'})
+        && data.createdAt == request.time && data.lastEventId == null
+        && data.originInstallmentId == op.entryId + '__' + string(op.cursor + 1)
+        && data.dueDate == civilDate(data.competence, op.target.dueDay);
+    }
+    function stagedPart(userId, id, data) {
+      let op = operation(userId);
+      let entry = op.target;
+      let index = op.cursor + 1;
+      return advancing(userId) && entry.deletedAt == null && index <= entry.installmentCount
+        && partShape(data) && id == op.entryId + '__' + string(index)
+        && data.entryId == op.entryId && data.index == index && data.count == entry.installmentCount
+        && data.revision == entry.revision && data.recurrenceId == null && data.cardId == entry.cardId
+        && data.amountCents == int(entry.totalCents / entry.installmentCount) + (index <= entry.totalCents % entry.installmentCount ? 1 : 0)
+        && data.competence == shiftedMonth(entry.firstCompetence, index - 1)
+        && data.settledAt == null && data.status == (entry.cardId == null ? 'pending' : null)
+        && data.dueDate == (entry.cardId == null ? civilDate(data.competence, entry.dueDay)
+          : getAfter(/databases/$(database)/documents/users/$(userId)/invoices/$(entry.cardId + '__' + data.competence)).data.dueDate);
+    }
+    function pendingPart(data) { return data.settledAt == null && data.status in ['pending', null]; }
+    function stagedRemoval(userId, id, data) {
+      let op = operation(userId);
+      return advancing(userId) && id == op.entryId + '__' + string(op.cursor + 1)
+        && data.entryId == op.entryId && data.revision == op.before.revision && pendingPart(data)
+        && (op.target.deletedAt != null || op.cursor + 1 > op.target.installmentCount);
+    }
+    function scheduleAck(userId, entry, index, op) {
+      let month = entry == null ? '' : shiftedMonth(entry.firstCompetence, index - 1);
+      let path = /databases/$(database)/documents/users/$(userId)/invoices/$(entry == null || entry.cardId == null ? 'none' : entry.cardId + '__' + month);
+      return entry == null || entry.cardId == null || entry.deletedAt != null || index > entry.installmentCount
+        || (getAfter(path).data.lastMutationId == op.mutationId + '_' + string(index) && getAfter(path).data.updatedAt == request.time);
+    }
+    function operationShape(data) {
+      return data.keys().hasAll(['entryId', 'mutationId', 'before', 'target', 'cursor', 'size', 'state', 'updatedAt'])
+        && data.keys().hasOnly(['entryId', 'mutationId', 'before', 'target', 'cursor', 'size', 'state', 'updatedAt'])
+        && validId(data.entryId) && data.mutationId is string && data.mutationId.size() <= 76 && validId(data.mutationId) && data.cursor is int && data.size is int
+        && data.size >= 1 && data.size <= 24 && data.cursor >= 0 && data.cursor <= data.size
+        && data.state in ['active', 'done'] && data.updatedAt == request.time;
+    }
+    function beginOperation(userId, data) {
+      let path = /databases/$(database)/documents/users/$(userId)/entries/$(data.entryId);
+      let existing = exists(path);
+      let previous = existing ? get(path).data : null;
+      let target = data.target;
+      let previousCount = previous == null ? 0 : previous.installmentCount;
+      let nextCount = target.deletedAt == null ? target.installmentCount : 0;
+      return operationShape(data) && data.cursor == 0 && data.state == 'active' && data.before == previous
+        && (existing ? getAfter(path).data == previous : !existsAfter(path))
+        && entryShape(target) && target.updatedAt == request.time && target.mutationId == data.mutationId
+        && target.get('recurrenceId', null) == null && (previous == null || previous.get('recurrenceId', null) == null)
+        && target.revision == (previous == null ? 1 : previous.revision + 1)
+        && (previous == null ? target.createdAt == request.time && target.deletedAt == null : previous.deletedAt == null && target.mutationId != previous.mutationId && target.createdAt == previous.createdAt)
+        && (target.deletedAt == null ? referencesAllowed(userId, target, previous == null ? {'categoryId': '', 'type': '', 'cardId': null, 'dueDay': 0} : previous)
+          : target.deletedAt == request.time && target.diff(previous).affectedKeys().hasOnly(['deletedAt', 'revision', 'mutationId', 'updatedAt']))
+        && data.size == (previousCount > nextCount ? previousCount : nextCount);
+    }
+    function progressOperation(userId, before, after) {
+      let index = before.cursor + 1;
+      let path = /databases/$(database)/documents/users/$(userId)/installments/$(before.entryId + '__' + string(index));
+      return after.diff(before).affectedKeys().hasOnly(['cursor', 'updatedAt']) && advancing(userId)
+        && (before.target.deletedAt == null && index <= before.target.installmentCount
+          ? getAfter(path).data.revision == before.target.revision && getAfter(path).data.updatedAt == request.time
+          : !existsAfter(path))
+        && scheduleAck(userId, before.before, index, before) && scheduleAck(userId, before.target, index, before);
+    }
+    function finalizeEntry(userId, id, data) {
+      let op = operation(userId);
+      let after = getAfter(/databases/$(database)/documents/users/$(userId)/scheduleOperations/current).data;
+      return op.state == 'active' && op.cursor == op.size && op.entryId == id && after.state == 'done'
+        && after.updatedAt == request.time && entryShape(data) && data.updatedAt == request.time
+        && data.diff(op.target).affectedKeys().hasOnly(['updatedAt', 'deletedAt'])
+        && (op.target.deletedAt == null ? data.deletedAt == null : data.deletedAt == request.time);
+    }
+    match /users/{userId}/scheduleOperations/{id} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && id == 'current' && beginOperation(userId, request.resource.data);
+      allow update: if isOwner(userId) && id == 'current' && operationShape(request.resource.data)
+        && (resource.data.state == 'done' ? beginOperation(userId, request.resource.data)
+          : progressOperation(userId, resource.data, request.resource.data)
+            || resource.data.cursor == resource.data.size && request.resource.data.state == 'done'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'updatedAt'])
+              && finalizeEntry(userId, resource.data.entryId, getAfter(/databases/$(database)/documents/users/$(userId)/entries/$(resource.data.entryId)).data));
+    }
+
     function partSlot(userId, entryId, data, index) {
       let path = /databases/$(database)/documents/users/$(userId)/installments/$(entryId + '__' + string(index));
       return data.deletedAt == null && index <= data.installmentCount
@@ -115,7 +238,7 @@ service cloud.firestore {
         : !existsAfter(path);
     }
     function completeSchedule(userId, entryId, data) {
-      return partSlot(userId, entryId, data, 1) && partSlot(userId, entryId, data, 2)
+      return data.installmentCount <= 5 && partSlot(userId, entryId, data, 1) && partSlot(userId, entryId, data, 2)
         && partSlot(userId, entryId, data, 3) && partSlot(userId, entryId, data, 4)
         && partSlot(userId, entryId, data, 5);
     }
@@ -155,31 +278,31 @@ service cloud.firestore {
     }
     match /users/{userId}/entries/{entryId} {
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && validId(entryId) && entryShape(request.resource.data)
+      allow create: if isOwner(userId) && (activeOperation(userId) ? finalizeEntry(userId, entryId, request.resource.data) : idle(userId) && validId(entryId) && entryShape(request.resource.data)
         && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
         && request.resource.data.deletedAt == null && request.resource.data.revision == 1
         && entrySource(userId, entryId, request.resource.data)
-        && completeSchedule(userId, entryId, request.resource.data);
-      allow update: if isOwner(userId) && resource.data.deletedAt == null && entryShape(request.resource.data)
+        && completeSchedule(userId, entryId, request.resource.data));
+      allow update: if isOwner(userId) && (activeOperation(userId) ? finalizeEntry(userId, entryId, request.resource.data) : idle(userId) && resource.data.deletedAt == null && entryShape(request.resource.data)
         && validUpdate(request.resource.data) && sameOccurrence(request.resource.data, resource.data) && request.resource.data.revision == resource.data.revision + 1
         && request.resource.data.mutationId != resource.data.mutationId
         && (request.resource.data.deletedAt == null
           ? referencesAllowed(userId, request.resource.data, resource.data)
           : (request.resource.data.deletedAt == request.time && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt', 'updatedAt', 'revision', 'mutationId'])))
-        && completeSchedule(userId, entryId, request.resource.data);
+        && completeSchedule(userId, entryId, request.resource.data));
     }
     match /users/{userId}/installments/{partId} {
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && partShape(request.resource.data)
+      allow create: if isOwner(userId) && (activeOperation(userId) ? stagedPart(userId, partId, request.resource.data) && request.resource.data.createdAt == request.time && request.resource.data.get('settlementRevision', 0) == 0 && request.resource.data.get('lastSettlementEventId', null) == null : idle(userId) && partShape(request.resource.data)
         && request.resource.data.createdAt == request.time && request.resource.data.get('settlementRevision', 0) == 0
-        && request.resource.data.get('lastSettlementEventId', null) == null && partMatchesEntry(userId, partId, request.resource.data);
-      allow update: if isOwner(userId) && partShape(request.resource.data)
+        && request.resource.data.get('lastSettlementEventId', null) == null && partMatchesEntry(userId, partId, request.resource.data));
+      allow update: if isOwner(userId) && (activeOperation(userId) ? stagedPart(userId, partId, request.resource.data) && pendingPart(resource.data) && sameSettlement(request.resource.data, resource.data) && request.resource.data.createdAt == resource.data.createdAt && resource.data.revision == operation(userId).before.revision : idle(userId) && partShape(request.resource.data)
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.entryId == resource.data.entryId && request.resource.data.index == resource.data.index
         && ((request.resource.data.revision == resource.data.revision + 1 && sameSettlement(request.resource.data, resource.data)
           && editablePart(userId, resource.data) && partMatchesEntry(userId, partId, request.resource.data))
-          || directSettlement(userId, partId, request.resource.data));
-      allow delete: if isOwner(userId) && partCanBeRemoved(userId, resource.data);
+          || directSettlement(userId, partId, request.resource.data)));
+      allow delete: if isOwner(userId) && (activeOperation(userId) ? stagedRemoval(userId, partId, resource.data) : idle(userId) && partCanBeRemoved(userId, resource.data));
     }
     function invoiceShape(data) {
       return data.keys().hasAll(['cardId', 'competence', 'dueDate', 'status', 'paidAt', 'paidAmountCents', 'originInstallmentId', 'totalCents', 'chargeCount', 'revision', 'lastMutationId', 'lastEntryId', 'lastEntryRevision', 'lastEventId', 'createdAt', 'updatedAt'])
@@ -259,10 +382,10 @@ service cloud.firestore {
     }
     match /users/{userId}/invoices/{invoiceKey} {
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && newInvoice(userId, invoiceKey, request.resource.data);
-      allow update: if isOwner(userId) && invoiceShape(request.resource.data) && validUpdate(request.resource.data)
+      allow create: if isOwner(userId) && (activeOperation(userId) ? stagedNewInvoice(userId, invoiceKey, request.resource.data) : idle(userId) && newInvoice(userId, invoiceKey, request.resource.data));
+      allow update: if isOwner(userId) && (activeOperation(userId) ? stagedInvoice(userId, invoiceKey, request.resource.data, resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalCents', 'chargeCount', 'revision', 'lastMutationId', 'lastEntryId', 'lastEntryRevision', 'updatedAt']) : idle(userId) && invoiceShape(request.resource.data) && validUpdate(request.resource.data)
         && request.resource.data.revision == resource.data.revision + 1 && request.resource.data.lastMutationId != resource.data.lastMutationId
-        && (aggregateUpdate(userId, request.resource.data) || paymentUpdate(userId, invoiceKey, request.resource.data));
+        && (aggregateUpdate(userId, request.resource.data) || paymentUpdate(userId, invoiceKey, request.resource.data)));
     }
     match /users/{userId}/invoiceEvents/{eventId} {
       allow read: if isOwner(userId);

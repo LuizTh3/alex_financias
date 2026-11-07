@@ -17,11 +17,11 @@ Sugestão: fechamento define o ciclo; compras posteriores ao fechamento avançam
 
 ## Limites
 
-- 1 a **5 parcelas** por lançamento, cada uma com no mínimo um centavo.
+- 1 a **24 parcelas** por lançamento, cada uma com no mínimo um centavo.
 - Total positivo de até **999.999.999 centavos** (R$ 9.999.999,99).
 - Calendário de 1900 a 9999, inclusive a última parcela.
 
-O limite de cinco parcelas é conservador e considera a validação atômica nas regras, não somente a quantidade de escritas: [Firestore limita as consultas de documentos das regras a 10 por operação e 20 na transação](https://firebase.google.com/docs/firestore/quotas). O caso de edição que troca categoria, cartão e todas as competências é testado no emulador. Ele precisa validar as parcelas e tanto as faturas antigas quanto as novas. A criação escreve no máximo 11 documentos (lançamento + 5 parcelas + 5 faturas). A movimentação entre cartões/competências pode escrever 16 (lançamento + 5 parcelas + 10 faturas antigas/novas). Uma ampliação do limite exige revisar as regras e testar os piores casos de edição.
+Até cinco parcelas preservam o fluxo atômico anterior. Operações que envolvem um parcelamento com mais de cinco parcelas usam scheduleOperations/current: uma transação inicia e captura origem/destino; cada etapa grava uma parcela e no máximo duas faturas, avançando o cursor; a última transação publica o lançamento e encerra a operação. As regras validam o cursor, os valores, os documentos exigidos e a preservação de faturas pagas. As telas financeiras ficam bloqueadas enquanto a operação estiver ativa e oferecem retomada. Nenhuma rotina de servidor é necessária.
 
 ## Repositório e modelo persistido
 
