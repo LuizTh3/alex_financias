@@ -4,6 +4,7 @@
       (() => {
         let theme;
         try { theme = localStorage.getItem('alex-theme'); } catch {}
-        document.documentElement.dataset.theme = theme === 'dark' || (theme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        // Tema claro por padrão; o escuro só quando escolhido no menu.
+        document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
       })();
     </script><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#153f35"/><title>Alex • Finanças pessoais</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
