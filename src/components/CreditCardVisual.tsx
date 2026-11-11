@@ -30,8 +30,8 @@ export function CreditCardVisual({ card, invoice, onOpen, actions, size = 'regul
         </dl>
       </div>
       : <dl className="credit-card-days">
-        <div><dt>Fecha dia</dt><dd>{card.closingDay}</dd></div>
-        <div><dt>Vence dia</dt><dd>{card.dueDay}</dd></div>
+        <div><dt>Fecha dia</dt><dd>{card.closingDay || '—'}</dd></div>
+        <div><dt>Vence dia</dt><dd>{card.dueDay || '—'}</dd></div>
       </dl>}
   </>
   return <article className={`credit-card-wrap size-${size}`}>

@@ -10,6 +10,12 @@ import { MoneyInput } from '../components/MoneyInput'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { installmentInMonth } from '../domain/installments'
 import { formatMoney } from '../domain/format'
+import { CardForm } from '../forms/CardForm'
+import { PurchaseForm } from '../forms/PurchaseForm'
+import { IncomeForm } from '../forms/IncomeForm'
+import { ReceivableForm } from '../forms/ReceivableForm'
+
+const demoCard = { id: 'demo', name: 'Nubank', color: '#8a05be', closingDay: 3, dueDay: 10, active: true }
 
 /** Vitrine dos componentes, disponível só em desenvolvimento (`/dev/componentes`), sem login. */
 export function ComponentsPreview() {
@@ -17,6 +23,7 @@ export function ComponentsPreview() {
   const [confirm, setConfirm] = useState(false)
   const [details, setDetails] = useState(false)
   const [money, setMoney] = useState('')
+  const [form, setForm] = useState<'card' | 'purchase' | 'income' | 'receivable' | null>(null)
   const sofa = { totalCents: 67644, installmentCount: 12, firstDueMonth: '2026-01' }
   const tv = { totalCents: 150000, installmentCount: 1, firstDueMonth: '2026-07' }
   return <main className="workspace">
@@ -37,6 +44,14 @@ export function ComponentsPreview() {
     </ul></section>
     <section className="mt-8 max-w-sm"><h2 className="mb-3">Dinheiro</h2><label htmlFor="money">Valor</label><MoneyInput id="money" value={money} onChange={event => setMoney(event.target.value)} /></section>
     <section className="mt-8"><h2 className="mb-3">Vazio</h2><div className="panel"><EmptyState title="Nenhum lançamento neste mês" action={<button className="primary">Novo lançamento</button>}>Cadastre uma compra para ver a fatura.</EmptyState></div></section>
+    <section className="mt-8"><h2 className="mb-3">Formulários (não salve: a vitrine não usa dados reais)</h2><div className="flex flex-wrap gap-2">
+      <button className="secondary" onClick={() => setForm('card')}>Cartão</button><button className="secondary" onClick={() => setForm('purchase')}>Lançamento</button>
+      <button className="secondary" onClick={() => setForm('income')}>Renda</button><button className="secondary" onClick={() => setForm('receivable')}>A receber</button>
+    </div></section>
+    {form === 'card' && <CardForm onClose={() => setForm(null)} />}
+    {form === 'purchase' && <PurchaseForm card={demoCard} onClose={() => setForm(null)} />}
+    {form === 'income' && <IncomeForm onClose={() => setForm(null)} />}
+    {form === 'receivable' && <ReceivableForm onClose={() => setForm(null)} />}
     {confirm && <ConfirmDialog title="Marcar fatura como paga?" confirmLabel="Marcar como paga" onConfirm={() => new Promise(resolve => setTimeout(resolve, 600))} onClose={() => setConfirm(false)}>
       <p>A fatura de <strong>julho de 2026</strong> do cartão <strong>Nubank</strong> ({formatMoney(155637)}) será marcada como paga.</p>
     </ConfirmDialog>}

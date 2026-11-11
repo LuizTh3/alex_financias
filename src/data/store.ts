@@ -64,8 +64,8 @@ const update = (uid: string, name: CollectionName, id: string, data: object) =>
 const remove = (uid: string, name: CollectionName, id: string) => deleteDoc(docRef(uid, name, id))
 
 // Cartões
-export const createCard = (uid: string, input: CardInput) => create(uid, 'cards', { ...cardSchema.parse(input), active: true })
-export const updateCard = (uid: string, id: string, input: CardInput) => update(uid, 'cards', id, cardSchema.parse(input))
+export const createCard = async (uid: string, input: CardInput) => create(uid, 'cards', { ...cardSchema.parse(input), active: true })
+export const updateCard = async (uid: string, id: string, input: CardInput) => update(uid, 'cards', id, cardSchema.parse(input))
 /** Sem dados: apaga. Com compras ou faturas pagas: inativa, e o cartão some das telas. */
 export async function removeCard(uid: string, id: string, hasData: boolean): Promise<'deleted' | 'deactivated'> {
   if (hasData) { await update(uid, 'cards', id, { active: false }); return 'deactivated' }
@@ -74,9 +74,9 @@ export async function removeCard(uid: string, id: string, hasData: boolean): Pro
 }
 
 // Compras: um documento por compra; apagar remove todas as parcelas.
-export const createPurchase = (uid: string, input: PurchaseInput) => create(uid, 'purchases', purchaseSchema.parse(input))
-export const updatePurchase = (uid: string, id: string, input: PurchaseInput) => update(uid, 'purchases', id, purchaseSchema.parse(input))
-export const deletePurchase = (uid: string, id: string) => remove(uid, 'purchases', id)
+export const createPurchase = async (uid: string, input: PurchaseInput) => create(uid, 'purchases', purchaseSchema.parse(input))
+export const updatePurchase = async (uid: string, id: string, input: PurchaseInput) => update(uid, 'purchases', id, purchaseSchema.parse(input))
+export const deletePurchase = async (uid: string, id: string) => remove(uid, 'purchases', id)
 
 // Fatura paga: apenas um marcador, sem cálculo.
 export async function setInvoicePaid(uid: string, cardId: string, month: string, paid: boolean) {
@@ -86,17 +86,17 @@ export async function setInvoicePaid(uid: string, cardId: string, month: string,
 }
 
 // Rendas
-export const createIncome = (uid: string, input: IncomeInput) => create(uid, 'incomes', incomeSchema.parse(input))
-export const updateIncome = (uid: string, id: string, input: IncomeInput) => update(uid, 'incomes', id, incomeSchema.parse(input))
-export const deleteIncome = (uid: string, id: string) => remove(uid, 'incomes', id)
+export const createIncome = async (uid: string, input: IncomeInput) => create(uid, 'incomes', incomeSchema.parse(input))
+export const updateIncome = async (uid: string, id: string, input: IncomeInput) => update(uid, 'incomes', id, incomeSchema.parse(input))
+export const deleteIncome = async (uid: string, id: string) => remove(uid, 'incomes', id)
 
 // A receber: isolado do saldo; o recebimento é marcado por parcela.
-export const createReceivable = (uid: string, input: ReceivableInput) => create(uid, 'receivables', receivableSchema.parse(input))
+export const createReceivable = async (uid: string, input: ReceivableInput) => create(uid, 'receivables', receivableSchema.parse(input))
 /** Edição mantém só as marcas de recebimento que ainda existem na nova quantidade de parcelas. */
-export function updateReceivable(uid: string, id: string, input: ReceivableInput) {
+export async function updateReceivable(uid: string, id: string, input: ReceivableInput) {
   const value = receivableSchema.parse({ ...input, receivedIndexes: input.receivedIndexes.filter(index => index <= input.installmentCount) })
   return update(uid, 'receivables', id, value)
 }
-export const deleteReceivable = (uid: string, id: string) => remove(uid, 'receivables', id)
-export const setInstallmentReceived = (uid: string, id: string, index: number, received: boolean) =>
+export const deleteReceivable = async (uid: string, id: string) => remove(uid, 'receivables', id)
+export const setInstallmentReceived = async (uid: string, id: string, index: number, received: boolean) =>
   update(uid, 'receivables', id, { receivedIndexes: received ? arrayUnion(index) : arrayRemove(index) })

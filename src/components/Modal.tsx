@@ -7,6 +7,8 @@ export function Modal({ title, children, busy = false, onClose }: {
   useEffect(() => {
     const element = dialog.current!
     element.showModal()
+    // showModal() foca o primeiro botão (o "×"); em formulários, o foco vai para o primeiro campo.
+    element.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus()
     return () => element.close()
   }, [])
   return <dialog ref={dialog} className="modal" aria-labelledby={titleId} onCancel={event => {

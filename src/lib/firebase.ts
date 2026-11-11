@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { connectAuthEmulator, getAuth } from 'firebase/auth'
+import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
 import { z } from 'zod'
 
 const config = z.object({
@@ -20,3 +20,9 @@ export const configurationError = !config.success
 const app = config.success ? initializeApp(config.data) : null
 export const auth = app ? getAuth(app) : null
 export const db = app ? getFirestore(app) : null
+
+/** `npm run dev:emulator`: só em desenvolvimento, usa o login e o banco do emulador local em vez do Firebase real. */
+if (import.meta.env.DEV && import.meta.env.VITE_FIREBASE_EMULATOR === 'true' && auth && db) {
+  connectAuthEmulator(auth, `http://127.0.0.1:${import.meta.env.VITE_EMULATOR_AUTH_PORT || 9099}`, { disableWarnings: true })
+  connectFirestoreEmulator(db, '127.0.0.1', Number(import.meta.env.VITE_EMULATOR_FIRESTORE_PORT || 8080))
+}
