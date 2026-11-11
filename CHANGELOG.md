@@ -14,7 +14,8 @@ Refatoração para simplificar o app, seguindo o novo diagrama de fluxo. **Mudan
 - Rendas mensais com início e fim opcional.
 - A receber de terceiros com marcação por parcela, fora do saldo.
 - Previsão de 12 meses a partir de um mês escolhido, com A receber informativo.
-- Mês e cartão selecionados ficam na URL.
+- Mês e cartão selecionados ficam na URL; após o login, o app volta ao link que se tentou abrir.
+- Previsão em cartões empilhados no celular, com o saldo sempre visível.
 - `npm run dev:emulator` para desenvolver com login e Firestore do emulador local.
 
 ### Removido
@@ -31,6 +32,18 @@ Refatoração para simplificar o app, seguindo o novo diagrama de fluxo. **Mudan
 
 - 84 testes locais e 16 testes de regras e repositórios no emulador.
 - Fluxos do diagrama conferidos no navegador com o emulador local.
+
+## 0.2.3 — 2026-11-07
+
+- Corrige a página 404 ao recarregar uma tela com janela aberta na Vercel.
+
+## 0.2.2 — 2026-11-07
+
+- Aumenta o limite de parcelas de 5 para 24.
+
+## 0.2.1 — 2026-11-06
+
+- Corrige o menu lateral, que acompanhava a altura do conteúdo da página.
 
 ## 0.2.0 — 2026-11-06
 

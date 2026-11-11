@@ -34,13 +34,13 @@ export function ForecastPage() {
           <thead><tr><th scope="col">Mês</th><th scope="col">Renda</th><th scope="col">A pagar</th><th scope="col">Saldo previsto</th><th scope="col" className="informative">A receber <span>(informativo)</span></th></tr></thead>
           <tbody>{months.map(item => <tr key={item.month} className={item.month === today ? 'is-current' : undefined}>
             <th scope="row"><Link className="record-link" to={item.month === today ? '/' : `/?mes=${item.month}`} title="Abrir na Visão geral">{capitalize(formatMonth(item.month))}</Link></th>
-            <td>{formatMoney(item.incomeCents)}</td>
-            <td>{formatMoney(item.payableCents)}</td>
-            <td className={item.balanceCents < 0 ? 'is-negative' : 'is-positive'}>{formatMoney(item.balanceCents)}</td>
-            <td className="informative">{formatMoney(item.receivableCents)}</td>
+            <td data-label="Renda">{formatMoney(item.incomeCents)}</td>
+            <td data-label="A pagar">{formatMoney(item.payableCents)}</td>
+            <td data-label="Saldo previsto" className={item.balanceCents < 0 ? 'is-negative' : 'is-positive'}>{formatMoney(item.balanceCents)}</td>
+            <td data-label="A receber (informativo)" className="informative">{formatMoney(item.receivableCents)}</td>
           </tr>)}</tbody>
-          <tfoot><tr><th scope="row">Total em 12 meses</th><td>{formatMoney(totals.income)}</td><td>{formatMoney(totals.payable)}</td>
-            <td className={totals.balance < 0 ? 'is-negative' : 'is-positive'}>{formatMoney(totals.balance)}</td><td className="informative">{formatMoney(totals.receivable)}</td></tr></tfoot>
+          <tfoot><tr><th scope="row">Total em 12 meses</th><td data-label="Renda">{formatMoney(totals.income)}</td><td data-label="A pagar">{formatMoney(totals.payable)}</td>
+            <td data-label="Saldo previsto" className={totals.balance < 0 ? 'is-negative' : 'is-positive'}>{formatMoney(totals.balance)}</td><td data-label="A receber (informativo)" className="informative">{formatMoney(totals.receivable)}</td></tr></tfoot>
         </table>
       </div>
     </>}
