@@ -1,4 +1,7 @@
 import { useForm } from 'react-hook-form'
+import { Input } from '@/components/ui/input'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '../contexts/AuthContext'
 import { shiftCompetence, todayCivil } from '../domain/calendar'
 import { centsToInput, formatMoney, formatShortMonth } from '../domain/format'
@@ -9,7 +12,7 @@ import { createReceivable, updateReceivable } from '../data/store'
 import { Modal } from '../components/Modal'
 import { MoneyInput } from '../components/MoneyInput'
 import { MonthPicker } from '../components/MonthPicker'
-import { applyIssues, Field, FormActions, invalid, readMoney, useSubmit } from './formKit'
+import { applyIssues, Field, fieldClass, FormActions, invalid, readMoney, useSubmit } from './formKit'
 
 type Values = { title: string; amount: string; installmentCount: string; launchDate: string; firstDueMonth: string; description: string }
 
@@ -56,21 +59,21 @@ export function ReceivableForm({ receivable, onClose }: { receivable?: Receivabl
     <form noValidate onSubmit={submit}>
       <fieldset disabled={isSubmitting}>
         <Field id="receivable-title" label="Título" error={errors.title?.message}>
-          <input id="receivable-title" autoFocus maxLength={120} autoComplete="off" placeholder="Ex.: nome de quem vai pagar" {...register('title')} {...invalid('receivable-title', errors.title?.message)} />
+          <Input id="receivable-title" className={fieldClass} autoFocus maxLength={120} autoComplete="off" placeholder="Ex.: nome de quem vai pagar" {...register('title')} {...invalid('receivable-title', errors.title?.message)} />
         </Field>
         <div className="form-grid">
           <Field id="receivable-amount" label="Valor total" error={errors.amount?.message}>
             <MoneyInput id="receivable-amount" {...register('amount')} {...invalid('receivable-amount', errors.amount?.message)} />
           </Field>
           <Field id="receivable-count" label="Parcelas" error={errors.installmentCount?.message}>
-            <select id="receivable-count" {...register('installmentCount')}>
-              {Array.from({ length: MAX_INSTALLMENTS }, (_, index) => index + 1).map(value => <option key={value} value={value}>{value === 1 ? 'Única' : `${value}x`}</option>)}
-            </select>
+            <NativeSelect id="receivable-count" className="w-full" {...register('installmentCount')}>
+              {Array.from({ length: MAX_INSTALLMENTS }, (_, index) => index + 1).map(value => <NativeSelectOption key={value} value={value}>{value === 1 ? 'Única' : `${value}x`}</NativeSelectOption>)}
+            </NativeSelect>
           </Field>
         </div>
         <div className="form-grid">
           <Field id="receivable-date" label="Data do lançamento" error={errors.launchDate?.message}>
-            <input id="receivable-date" type="date" {...register('launchDate')} {...invalid('receivable-date', errors.launchDate?.message)} />
+            <Input id="receivable-date" className={fieldClass} type="date" {...register('launchDate')} {...invalid('receivable-date', errors.launchDate?.message)} />
           </Field>
           <Field id="receivable-first" label="1º mês de recebimento" error={errors.firstDueMonth?.message}>
             <MonthPicker label="1º mês de recebimento" value={values.firstDueMonth} onChange={month => { clearErrors('firstDueMonth'); setValue('firstDueMonth', month) }} />
@@ -79,7 +82,7 @@ export function ReceivableForm({ receivable, onClose }: { receivable?: Receivabl
         {preview && <p className="notice mt-4" aria-live="polite">{preview}</p>}
         {dropped > 0 && <p className="notice mt-2">{dropped} {dropped === 1 ? 'parcela marcada como recebida deixa' : 'parcelas marcadas como recebidas deixam'} de existir com a nova quantidade.</p>}
         <Field id="receivable-description" label="Descrição (opcional)" error={errors.description?.message}>
-          <textarea id="receivable-description" maxLength={1000} {...register('description')} />
+          <Textarea id="receivable-description" maxLength={1000} {...register('description')} />
         </Field>
       </fieldset>
       {error && <p role="alert" className="error">{error}</p>}

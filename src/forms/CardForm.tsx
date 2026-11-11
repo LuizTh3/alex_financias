@@ -1,10 +1,11 @@
 import { Controller, useForm } from 'react-hook-form'
+import { Input } from '@/components/ui/input'
 import { useAuth } from '../contexts/AuthContext'
 import { cardSchema, type Card } from '../domain/schemas'
 import { createCard, updateCard } from '../data/store'
 import { Modal } from '../components/Modal'
 import { CreditCardVisual } from '../components/CreditCardVisual'
-import { applyIssues, Field, FormActions, invalid, useSubmit } from './formKit'
+import { applyIssues, Field, fieldClass, FormActions, invalid, useSubmit } from './formKit'
 
 type Values = { name: string; color: string; closingDay: string; dueDay: string }
 const COLORS = ['#8a05be', '#ff7a00', '#e11d48', '#1d4ed8', '#0f766e', '#153f35', '#1f2937', '#b45309']
@@ -31,7 +32,7 @@ export function CardForm({ card, onClose }: { card?: Card; onClose: () => void }
       <div className="form-preview"><CreditCardVisual card={preview} /></div>
       <fieldset disabled={isSubmitting}>
         <Field id="card-name" label="Nome do cartão" error={errors.name?.message}>
-          <input id="card-name" autoFocus maxLength={120} autoComplete="off" placeholder="Ex.: Nubank" {...register('name')} {...invalid('card-name', errors.name?.message)} />
+          <Input id="card-name" className={fieldClass} autoFocus maxLength={120} autoComplete="off" placeholder="Ex.: Nubank" {...register('name')} {...invalid('card-name', errors.name?.message)} />
         </Field>
         <Field id="card-color" label="Cor" error={errors.color?.message}>
           <Controller control={control} name="color" render={({ field }) => <div className="color-choices">
@@ -42,10 +43,10 @@ export function CardForm({ card, onClose }: { card?: Card; onClose: () => void }
         </Field>
         <div className="form-grid">
           <Field id="card-closing" label="Dia de fechamento" error={errors.closingDay?.message}>
-            <input id="card-closing" type="number" inputMode="numeric" min={1} max={31} {...register('closingDay')} {...invalid('card-closing', errors.closingDay?.message)} />
+            <Input id="card-closing" className={fieldClass} type="number" inputMode="numeric" min={1} max={31} {...register('closingDay')} {...invalid('card-closing', errors.closingDay?.message)} />
           </Field>
           <Field id="card-due" label="Dia de vencimento" error={errors.dueDay?.message}>
-            <input id="card-due" type="number" inputMode="numeric" min={1} max={31} {...register('dueDay')} {...invalid('card-due', errors.dueDay?.message)} />
+            <Input id="card-due" className={fieldClass} type="number" inputMode="numeric" min={1} max={31} {...register('dueDay')} {...invalid('card-due', errors.dueDay?.message)} />
           </Field>
         </div>
         <p className="field-hint">Dias 29, 30 e 31 viram o último dia nos meses mais curtos.</p>

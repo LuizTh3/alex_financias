@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { useAuth } from '../contexts/AuthContext'
 import { useCollection } from '../hooks/useCollection'
 import { incomeActiveIn, incomeInMonth } from '../domain/summary'
@@ -27,15 +30,15 @@ export function IncomesPage() {
   return <main className="workspace">
     <header>
       <div><p className="eyebrow">ENTRADAS MENSAIS</p><h1>Rendas</h1></div>
-      <button type="button" className="primary" onClick={() => setEditing('new')}>+ Nova renda</button>
+      <Button onClick={() => setEditing('new')}>+ Nova renda</Button>
     </header>
     <LoadState loading={incomes.loading} error={incomes.error} onRetry={incomes.retry} />
     {!incomes.loading && !incomes.error && <>
       <p className="muted mb-6 max-w-2xl">As rendas entram no cálculo do saldo previsto: renda do mês menos o valor das faturas. Renda de {formatMonth(month)}: <strong className="text-[var(--text)]">{formatMoney(incomeInMonth(month, incomes.rows))}</strong>.</p>
       {sorted.length === 0
-        ? <div className="panel"><EmptyState icon="↗" title="Nenhuma renda cadastrada" action={<button type="button" className="primary" onClick={() => setEditing('new')}>Cadastrar renda</button>}>
+        ? <Card className="p-0"><EmptyState icon="↗" title="Nenhuma renda cadastrada" action={<Button onClick={() => setEditing('new')}>Cadastrar renda</Button>}>
           Cadastre seu salário e outras entradas mensais para calcular o saldo previsto.
-        </EmptyState></div>
+        </EmptyState></Card>
         : <>
           <h2 className="mb-3">Histórico de rendas</h2>
           <ul className="installment-list">{sorted.map(income => {
@@ -47,10 +50,10 @@ export function IncomesPage() {
               </div>
               <div className="installment-side">
                 <strong className="installment-amount">{formatMoney(income.amountCents)}<span className="muted text-xs font-normal">/mês</span></strong>
-                <span className={`status-badge ${situation === 'active' ? 'is-done' : 'is-muted'}`}>{SITUATIONS[situation]}</span>
+                <Badge variant={situation === 'active' ? 'default' : 'secondary'} className={situation === 'active' ? 'bg-success-bg text-success' : undefined}>{SITUATIONS[situation]}</Badge>
                 <div className="row-actions">
-                  <button type="button" className="secondary" onClick={() => setEditing(income)}>Editar</button>
-                  <button type="button" className="secondary" onClick={() => setRemoving(income)}>Excluir</button>
+                  <Button variant="outline" onClick={() => setEditing(income)}>Editar</Button>
+                  <Button variant="outline" onClick={() => setRemoving(income)}>Excluir</Button>
                 </div>
               </div>
             </li>

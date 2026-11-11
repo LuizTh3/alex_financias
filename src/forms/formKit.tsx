@@ -1,12 +1,14 @@
 import { useRef, useState, type ReactNode } from 'react'
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form'
 import type { ZodError } from 'zod'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { parseMoneyToCents } from '../domain/money'
 
 /** Rótulo + campo + mensagem de erro, com os atributos de acessibilidade ligados. */
 export function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: ReactNode; children: ReactNode }) {
   return <div className="field">
-    <label htmlFor={id}>{label}</label>
+    <Label htmlFor={id}>{label}</Label>
     {children}
     {hint && !error && <p className="field-hint">{hint}</p>}
     {error && <p id={`${id}-error`} className="field-error" role="alert">{error}</p>}
@@ -16,10 +18,13 @@ export function Field({ id, label, error, hint, children }: { id: string; label:
 /** Atributos de acessibilidade para um campo com erro. */
 export const invalid = (id: string, error?: string) => ({ 'aria-invalid': !!error, 'aria-describedby': error ? `${id}-error` : undefined })
 
+/** Classe comum dos campos dos formulários (altura padrão do shadcn, igual à do NativeSelect). */
+export const fieldClass = 'w-full'
+
 export function FormActions({ busy, onCancel, submitLabel }: { busy: boolean; onCancel: () => void; submitLabel: string }) {
-  return <div className="modal-actions">
-    <button type="button" className="secondary" disabled={busy} onClick={onCancel}>Cancelar</button>
-    <button type="submit" className="primary" disabled={busy}>{busy ? 'Salvando…' : submitLabel}</button>
+  return <div className="mt-6 flex justify-end gap-2">
+    <Button type="button" variant="outline" size="lg" disabled={busy} onClick={onCancel}>Cancelar</Button>
+    <Button type="submit" size="lg" disabled={busy}>{busy ? 'Salvando…' : submitLabel}</Button>
   </div>
 }
 

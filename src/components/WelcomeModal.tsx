@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { Link } from 'react-router'
 import { Modal } from './Modal'
 import { needsWelcome, completeWelcome } from '../data/user'
@@ -19,11 +20,11 @@ export function WelcomeModal({ uid }: { uid: string }) {
     void completeWelcome(uid).catch(() => setError('Não foi possível salvar que você já viu esta apresentação. Ela poderá aparecer no próximo acesso.'))
   }
   return <>
-    {error && <div className="notice" role="status">{error}<button className="secondary ml-3" onClick={() => setError('')}>Fechar aviso</button></div>}
+    {error && <div className="notice m-4 flex flex-wrap items-center gap-3" role="status">{error}<Button variant="outline" size="sm" onClick={() => setError('')}>Fechar aviso</Button></div>}
     {open && !dismissed && <Modal title="Boas-vindas ao Alex!" onClose={close}>
-      <p className="mt-5">Para começar, <strong>cadastre seus cartões</strong>. Depois, lance as compras na tela <strong>Faturas</strong> e informe suas <strong>Rendas</strong>.</p>
+      <p>Para começar, <strong>cadastre seus cartões</strong>. Depois, lance as compras na tela <strong>Faturas</strong> e informe suas <strong>Rendas</strong>.</p>
       <p className="muted mt-4">A <strong>Visão geral</strong> mostra o saldo previsto do mês (renda menos as faturas) e a <strong>Previsão dos meses</strong> mostra os próximos 12 meses. Em <strong>A receber</strong> você acompanha o que outras pessoas lhe devem, sem afetar o saldo.</p>
-      <div className="modal-actions flex-wrap"><button type="button" className="secondary" onClick={close}>Fechar e continuar</button><Link className="primary" to="/cartoes" onClick={close}>Cadastrar cartões</Link></div>
+      <div className="mt-6 flex flex-wrap justify-end gap-2"><Button variant="outline" size="lg" onClick={close}>Fechar e continuar</Button><Button size="lg" asChild><Link to="/cartoes" onClick={close}>Cadastrar cartões</Link></Button></div>
     </Modal>}
   </>
 }
