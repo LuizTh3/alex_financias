@@ -1,14 +1,11 @@
-import { ScheduleGate } from './ScheduleGate'
 import { ThemeToggle } from './ThemeToggle'
 import { WelcomeModal } from './WelcomeModal'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 const pages = [
-  ['/', 'Visão geral'], ['/como-usar', 'Como usar'],
-  ['/categorias', 'Categorias'], ['/cartoes', 'Cartões'], ['/conta', 'Minha conta'],
-  ['/lancamentos', 'Lançamentos'], ['/despesas-fixas', 'Rendas e despesas mensais'],
-  ['/faturas', 'Faturas'], ['/a-receber', 'A receber'], ['/futuros', 'Compromissos futuros'],
+  ['/', 'Visão geral'], ['/faturas', 'Faturas'], ['/cartoes', 'Cartões'],
+  ['/previsao', 'Previsão dos meses'], ['/rendas', 'Rendas'], ['/a-receber', 'A receber'],
 ]
 export function AppLayout() {
   const { user, logout } = useAuth()
@@ -29,6 +26,6 @@ export function AppLayout() {
         {error && <p role="alert" className="error">{error}</p>}
       </div>
     </aside>
-    <div id="page-content" className="page-content" tabIndex={-1}>{user && <ScheduleGate key={user.uid} uid={user.uid}><Outlet /></ScheduleGate>}{user && <WelcomeModal key={user.uid} uid={user.uid} />}</div>
+    <div id="page-content" className="page-content" tabIndex={-1}>{user && <Outlet />}{user && <WelcomeModal key={user.uid} uid={user.uid} />}</div>
   </div>
 }
