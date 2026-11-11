@@ -65,7 +65,7 @@ export function InvoicesPage() {
         : <div className="invoice-layout">
           <aside className="invoice-side">
             {selector}
-            <CreditCardVisual size="large" card={card} invoice={{ totalCents, paid, ...invoiceDates(card, month) }} />
+            <CreditCardVisual size="large" card={card} invoice={{ totalCents, paid, chargeCount: allRows.length, ...invoiceDates(card, month) }} />
             <div className="invoice-buttons">
               <Button onClick={() => setEditing('new')}>+ Novo lançamento</Button>
               <Button variant="outline" disabled={!paid && totalCents === 0}

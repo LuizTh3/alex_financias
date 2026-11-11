@@ -28,13 +28,3 @@ export function maskMoneyInput(raw: string): string {
 /** 67644 → "676,44"; 123456 → "1.234,56" (formato aceito por parseMoneyToCents). */
 export const centsToInput = (cents: number) =>
   new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100)
-
-/** Cor de texto legível (claro ou escuro) sobre a cor do cartão. */
-export function readableTextColor(hex: string): '#ffffff' | '#14211c' {
-  const [r, g, b] = [1, 3, 5].map(index => {
-    const channel = parseInt(hex.slice(index, index + 2), 16) / 255
-    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
-  })
-  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
-  return luminance > 0.4 ? '#14211c' : '#ffffff'
-}

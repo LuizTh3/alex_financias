@@ -44,7 +44,7 @@ export function CardsPage() {
         : visible.length === 0
           ? <Panel className="p-0"><EmptyState icon="⌕" title="Nenhum cartão encontrado">Nenhum nome contém “{search.trim()}”.</EmptyState></Panel>
           : <div className="card-grid">{visible.map(card => <CreditCardVisual key={card.id} card={card} actions={<>
-            <Link className="secondary" to={`/faturas?cartao=${card.id}`}>Faturas</Link>
+            <Button asChild><Link to={`/faturas?cartao=${card.id}`}>Faturas</Link></Button>
             <Button variant="outline" onClick={() => { setMessage(''); setEditing(card) }}>Editar</Button>
             <Button variant="outline" onClick={() => { setMessage(''); setRemoving(card) }}>Excluir</Button>
           </>} />)}</div>}

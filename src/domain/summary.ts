@@ -5,7 +5,7 @@ import { invoiceStatusId, type Card, type Income, type InvoiceStatus, type Purch
 export type PurchaseFilter = 'all' | 'single' | 'installment'
 export type FinanceData = { cards: Card[]; purchases: Purchase[]; statuses: InvoiceStatus[]; incomes: Income[]; receivables: Receivable[] }
 export type InvoiceRow = { purchase: Purchase; installment: Installment }
-export type CardInvoice = { card: Card; month: string; closingDate: string; dueDate: string; totalCents: number; paid: boolean }
+export type CardInvoice = { card: Card; month: string; closingDate: string; dueDate: string; totalCents: number; chargeCount: number; paid: boolean }
 export type ReceivableRow = { receivable: Receivable; installment: Installment; received: boolean }
 export type MonthSummary = { month: string; incomeCents: number; payableCents: number; balanceCents: number; receivableCents: number }
 
@@ -46,6 +46,7 @@ export function cardInvoices(month: string, data: Pick<FinanceData, 'cards' | 'p
   return activeCards(data.cards).map(card => ({
     card, month, ...invoiceDates(card, month),
     totalCents: invoiceTotal(card.id, month, data.purchases),
+    chargeCount: invoiceRows(card.id, month, data.purchases).length,
     paid: isInvoicePaid(card.id, month, data.statuses),
   }))
 }

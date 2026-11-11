@@ -45,8 +45,8 @@ export function OverviewPage() {
             {invoices.map(invoice => {
               const open = () => navigate(`/faturas?cartao=${invoice.card.id}${monthQuery}`)
               return <CreditCardVisual key={invoice.card.id} card={invoice.card} invoice={invoice} onOpen={open} actions={<>
-                <Button variant="outline" onClick={open}>Acessar</Button>
-                <Button variant={invoice.paid ? 'outline' : 'default'} disabled={!invoice.paid && invoice.totalCents === 0}
+                <Button onClick={open}>Acessar</Button>
+                <Button variant="outline" disabled={!invoice.paid && invoice.totalCents === 0}
                   title={!invoice.paid && invoice.totalCents === 0 ? 'Sem lançamentos neste mês' : undefined}
                   onClick={() => setPaying({ cardId: invoice.card.id, cardName: invoice.card.name, month, totalCents: invoice.totalCents, paid: invoice.paid })}>
                   {invoice.paid ? 'Desmarcar' : 'Pagar'}

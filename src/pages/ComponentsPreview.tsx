@@ -33,12 +33,12 @@ export function ComponentsPreview() {
     <section className="mt-6"><h2 className="mb-3">Seletor de mês</h2><MonthPicker value={month} onChange={setMonth} /></section>
     <section className="mt-8"><h2 className="mb-3">Selos</h2><div className="flex gap-2"><StatusBadge done /><StatusBadge done={false} /><StatusBadge kind="receivable" done /><StatusBadge kind="receivable" done={false} /></div></section>
     <section className="mt-8"><h2 className="mb-3">Cartões</h2><div className="card-grid">
-      <CreditCardVisual card={{ name: 'Nubank', color: '#8a05be', closingDay: 3, dueDay: 10 }} invoice={{ totalCents: 155637, closingDate: '2026-07-03', dueDate: '2026-07-10', paid: false }}
+      <CreditCardVisual card={{ name: 'Nubank', color: '#8a05be', closingDay: 3, dueDay: 10 }} invoice={{ totalCents: 155637, closingDate: '2026-07-03', dueDate: '2026-07-10', paid: false, chargeCount: 19 }}
         onOpen={() => setDetails(true)} actions={<><Button variant="outline">Acessar</Button><Button onClick={() => setConfirm(true)}>Pagar</Button></>} />
-      <CreditCardVisual card={{ name: 'Inter Black', color: '#ff7a00', closingDay: 28, dueDay: 5 }} invoice={{ totalCents: 10000, closingDate: '2026-06-28', dueDate: '2026-07-05', paid: true }} onOpen={() => undefined} />
+      <CreditCardVisual card={{ name: 'Inter Black', color: '#ff7a00', closingDay: 28, dueDay: 5 }} invoice={{ totalCents: 10000, closingDate: '2026-06-28', dueDate: '2026-07-05', paid: true, chargeCount: 1 }} onOpen={() => undefined} />
       <CreditCardVisual card={{ name: 'Cartão claro', color: '#f2e6c9', closingDay: 15, dueDay: 25 }} />
     </div>
-    <div className="mt-6"><CreditCardVisual size="large" card={{ name: 'Nubank', color: '#8a05be', closingDay: 3, dueDay: 10 }} invoice={{ totalCents: 155637, closingDate: '2026-07-03', dueDate: '2026-07-10', paid: true }} /></div></section>
+    <div className="mt-6"><CreditCardVisual size="large" card={{ name: 'Nubank', color: '#8a05be', closingDay: 3, dueDay: 10 }} invoice={{ totalCents: 155637, closingDate: '2026-07-03', dueDate: '2026-07-10', paid: true, chargeCount: 19 }} /></div></section>
     <section className="mt-8"><h2 className="mb-3">Histórico</h2><ul className="installment-list">
       <InstallmentRow title="Compra sofá" installment={installmentInMonth(sofa, '2026-07')!} onOpen={() => setDetails(true)} actions={<><Button variant="outline">Editar</Button><Button variant="outline">Excluir</Button></>} />
       <InstallmentRow title="Televisão" installment={installmentInMonth(tv, '2026-07')!} onOpen={() => setDetails(true)} />
