@@ -184,3 +184,85 @@ input:autofill { box-shadow: 0 0 0 1000px var(--surface) inset; -webkit-text-fil
   .sidebar nav a { padding: .7rem .8rem; line-height: 1.4; }
   .sidebar-footer { padding-top: 1.5rem; }
 }
+
+/* ===== Componentes do modelo simplificado (v0.3.0) ===== */
+:root { --card-shadow: 0 14px 30px -12px #153f3566; --open: #8a5a00; --open-bg: #fff4d6; }
+:root[data-theme="dark"] { --card-shadow: 0 14px 30px -12px #000c; --open: #f3cf7a; --open-bg: #3d3220; }
+.danger { background: var(--danger); color: var(--surface); border-radius: .5rem; padding: .9rem 1.3rem; font-weight: 600; }
+.danger:hover { filter: brightness(1.08); }
+.confirm-body { line-height: 1.6; font-size: .95rem; }
+.confirm-body p + p { margin-top: .6rem; }
+
+/* Seletor de mês */
+.month-picker-root { position: relative; width: fit-content; }
+.month-picker button { padding: .7rem .85rem; color: var(--text); border-radius: .5rem; }
+.month-picker button:hover { background: var(--soft); }
+.month-picker .month-picker-label { min-width: 11rem; font-size: .9rem; font-weight: 600; }
+.month-panel { position: absolute; z-index: 20; top: calc(100% + .4rem); left: 0; width: 17rem; background: var(--surface); border: 1px solid var(--border); border-radius: .8rem; padding: .9rem; box-shadow: 0 12px 30px -10px #0004; }
+.month-panel-year { display: flex; justify-content: space-between; align-items: center; margin-bottom: .6rem; }
+.month-panel-year button { padding: .3rem .7rem; border-radius: .4rem; }
+.month-panel-year button:hover { background: var(--soft); }
+.month-panel-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .3rem; }
+.month-panel-grid button { padding: .6rem 0; border-radius: .45rem; font-size: .85rem; }
+.month-panel-grid button:hover { background: var(--soft); }
+.month-panel-grid button[data-today] { box-shadow: inset 0 0 0 1px var(--border); }
+.month-panel-grid button[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); font-weight: 600; }
+.month-panel-today { width: 100%; margin-top: .6rem; padding: .5rem; font-size: .8rem; color: var(--muted); border-radius: .45rem; text-decoration: underline; }
+@media(max-width: 640px) { .month-picker .month-picker-label { min-width: 0; flex: 1; } .month-picker-root, .month-picker { width: 100%; } }
+
+/* Selo pago / em aberto */
+.status-badge { display: inline-flex; align-items: center; gap: .35rem; font-size: .72rem; font-weight: 600; border-radius: 2rem; padding: .3rem .7rem; white-space: nowrap; }
+.status-badge.is-done { background: var(--success-bg); color: var(--success); }
+.status-badge.is-open { background: var(--open-bg); color: var(--open); }
+
+/* Cartão de crédito visual */
+.credit-card-wrap { display: flex; flex-direction: column; gap: .6rem; min-width: 0; }
+.credit-card { position: relative; display: flex; flex-direction: column; gap: .9rem; width: 100%; min-height: 12.5rem; padding: 1.25rem 1.4rem 1.35rem; border-radius: 1rem; text-align: left; color: var(--card-text); background: radial-gradient(70% 60% at 85% 115%, #ffffff1c 0 60%, transparent 61%), radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--card-color) 55%, white) 0%, var(--card-color) 45%, color-mix(in srgb, var(--card-color) 70%, black) 100%); box-shadow: var(--card-shadow); }
+button.credit-card { transition: transform .15s ease, box-shadow .15s ease; }
+button.credit-card:hover { transform: translateY(-2px); }
+.credit-card-top { display: flex; justify-content: space-between; align-items: center; }
+.credit-card-chip { width: 2.4rem; height: 1.8rem; border-radius: .35rem; background: linear-gradient(135deg, #f4dc94, #c99a3b 60%, #f1d48a); box-shadow: inset 0 0 0 1px #0002; }
+.credit-card-name { font-size: 1.15rem; font-weight: 600; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.credit-card-invoice { margin-top: auto; position: relative; z-index: 1; }
+.credit-card-invoice > span { font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; opacity: .8; }
+.credit-card-invoice > strong { display: block; font-size: clamp(1.4rem, 2.4vw, 1.9rem); font-weight: 600; letter-spacing: -.03em; }
+.credit-card dl { display: flex; gap: 1.5rem; margin-top: .35rem; position: relative; z-index: 1; }
+.credit-card-days { margin-top: auto !important; }
+.credit-card dt { font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; opacity: .75; }
+.credit-card dd { font-size: .9rem; font-weight: 600; }
+.credit-card .status-badge { background: #ffffffe6; }
+.credit-card .status-badge.is-done { color: #1d5a3f; }
+.credit-card .status-badge.is-open { color: #7a4f00; }
+.credit-card-wrap.size-large { max-width: 26rem; }
+.credit-card-wrap.size-large .credit-card-name { font-size: 1.35rem; }
+.credit-card-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.credit-card-actions > * { flex: 1; text-align: center; padding: .65rem .9rem; font-size: .85rem; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 1.25rem; }
+
+/* Linhas do histórico */
+.installment-list { background: var(--surface); border: 1px solid var(--border); border-radius: .8rem; overflow: hidden; }
+.installment-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1.25rem; border-bottom: 1px solid var(--divider); flex-wrap: wrap; }
+.installment-row:last-child { border-bottom: 0; }
+.installment-main { display: flex; flex-direction: column; align-items: flex-start; gap: .2rem; text-align: left; min-width: 0; flex: 1; padding: .2rem 0; }
+.installment-main:hover .installment-title { text-decoration: underline; text-underline-offset: .2rem; }
+.installment-title { font-weight: 600; overflow-wrap: anywhere; }
+.installment-meta { font-size: .8rem; color: var(--muted); }
+.installment-side { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; justify-content: flex-end; }
+.installment-amount { font-variant-numeric: tabular-nums; font-size: 1rem; }
+@media(max-width: 640px) { .installment-row { padding: .9rem 1rem; } .installment-side { width: 100%; justify-content: space-between; } }
+
+/* Detalhes */
+.details-list { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem 1.25rem; margin-top: 1.25rem; }
+.details-list dt { font-size: .72rem; color: var(--muted); }
+.details-list dd { font-weight: 600; margin-top: .15rem; }
+.details-description { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--divider); }
+.details-description h3 { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.details-description p { margin-top: .35rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Campo de dinheiro */
+.money-input { position: relative; }
+.money-input > span { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: .9rem; pointer-events: none; }
+.money-input input { padding-left: 2.6rem; font-variant-numeric: tabular-nums; }
+textarea { width: 100%; border: 1px solid var(--border); background: var(--surface); border-radius: .5rem; padding: .8rem; font: inherit; min-height: 5.5rem; resize: vertical; }
+textarea:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.modal-actions > button, .modal-actions > a { padding: .75rem 1.2rem; font-size: .9rem; }
