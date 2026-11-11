@@ -1,24 +1,18 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+/**
+ * Janela sobreposta (shadcn Dialog). Fica aberta enquanto montada; fechar chama `onClose`.
+ * Clicar fora não fecha, para não perder o que foi digitado; durante `busy` nada fecha.
+ */
 export function Modal({ title, children, busy = false, onClose }: {
   title: string; children: ReactNode; busy?: boolean; onClose: () => void,
 }) {
-  const dialog = useRef<HTMLDialogElement>(null)
-  const titleId = useId()
-  useEffect(() => {
-    const element = dialog.current!
-    element.showModal()
-    // showModal() foca o primeiro botão (o "×"); em formulários, o foco vai para o primeiro campo.
-    element.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus()
-    return () => element.close()
-  }, [])
-  return <dialog ref={dialog} className="modal" aria-labelledby={titleId} onCancel={event => {
-    event.preventDefault()
-    if (!busy) onClose()
-  }}>
-    <div className="modal-heading">
-      <h2 id={titleId}>{title}</h2>
-      <button type="button" className="secondary" aria-label="Fechar" disabled={busy} onClick={onClose}>×</button>
-    </div>
-    {children}
-  </dialog>
+  return <Dialog open onOpenChange={open => { if (!open && !busy) onClose() }}>
+    <DialogContent aria-describedby={undefined} showCloseButton={!busy} className="max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 sm:max-w-lg"
+      onInteractOutside={event => event.preventDefault()}>
+      <DialogHeader><DialogTitle className="pr-8 text-lg">{title}</DialogTitle></DialogHeader>
+      <div>{children}</div>
+    </DialogContent>
+  </Dialog>
 }

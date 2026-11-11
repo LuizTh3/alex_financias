@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Card as Panel } from '@/components/ui/card'
 import { Link } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { useFinanceData } from '../hooks/useCollection'
@@ -25,25 +28,25 @@ export function CardsPage() {
   return <main className="workspace">
     <header>
       <div><p className="eyebrow">CADASTRO</p><h1>Cartões</h1></div>
-      <button type="button" className="primary" onClick={() => { setMessage(''); setEditing('new') }}>+ Novo cartão</button>
+      <Button onClick={() => { setMessage(''); setEditing('new') }}>+ Novo cartão</Button>
     </header>
     {message && <p className="success mb-4" role="status">{message}</p>}
     <LoadState loading={loading} error={error} onRetry={retry} />
     {!loading && !error && <>
       {cards.length > 0 && <div className="toolbar">
-        <input type="search" className="search" placeholder="Buscar pelo nome" aria-label="Buscar cartão pelo nome" value={search} onChange={event => setSearch(event.target.value)} />
+        <Input type="search" className="w-full sm:w-64" placeholder="Buscar pelo nome" aria-label="Buscar cartão pelo nome" value={search} onChange={event => setSearch(event.target.value)} />
         <span className="muted text-sm">{visible.length} de {cards.length} {cards.length === 1 ? 'cartão' : 'cartões'}</span>
       </div>}
       {cards.length === 0
-        ? <div className="panel"><EmptyState icon="▭" title="Nenhum cartão cadastrado" action={<button type="button" className="primary" onClick={() => setEditing('new')}>Cadastrar primeiro cartão</button>}>
+        ? <Panel className="p-0"><EmptyState icon="▭" title="Nenhum cartão cadastrado" action={<Button onClick={() => setEditing('new')}>Cadastrar primeiro cartão</Button>}>
           Cadastre seus cartões para lançar as compras e acompanhar as faturas.
-        </EmptyState></div>
+        </EmptyState></Panel>
         : visible.length === 0
-          ? <div className="panel"><EmptyState icon="⌕" title="Nenhum cartão encontrado">Nenhum nome contém “{search.trim()}”.</EmptyState></div>
+          ? <Panel className="p-0"><EmptyState icon="⌕" title="Nenhum cartão encontrado">Nenhum nome contém “{search.trim()}”.</EmptyState></Panel>
           : <div className="card-grid">{visible.map(card => <CreditCardVisual key={card.id} card={card} actions={<>
             <Link className="secondary" to={`/faturas?cartao=${card.id}`}>Faturas</Link>
-            <button type="button" className="secondary" onClick={() => { setMessage(''); setEditing(card) }}>Editar</button>
-            <button type="button" className="secondary" onClick={() => { setMessage(''); setRemoving(card) }}>Excluir</button>
+            <Button variant="outline" onClick={() => { setMessage(''); setEditing(card) }}>Editar</Button>
+            <Button variant="outline" onClick={() => { setMessage(''); setRemoving(card) }}>Excluir</Button>
           </>} />)}</div>}
     </>}
     {editing && <CardForm card={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />}

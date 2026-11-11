@@ -1,49 +1,41 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useState } from 'react'
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { shiftCompetence } from '../domain/calendar'
 import { currentMonth, formatMonth } from '../domain/format'
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
-/** Setas para o mês anterior/seguinte e um calendário de meses ao clicar no nome. */
+/** Setas para o mês anterior/seguinte e um calendário de meses (shadcn Popover) ao clicar no nome. */
 export function MonthPicker({ value, onChange, label = 'Mês' }: { value: string; onChange: (month: string) => void; label?: string }) {
   const [open, setOpen] = useState(false)
   const [year, setYear] = useState(() => Number(value.slice(0, 4)))
-  const root = useRef<HTMLDivElement>(null)
-  const panelId = useId()
-  useEffect(() => {
-    if (!open) return
-    const close = (event: MouseEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !root.current?.contains(event.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', close)
-    document.addEventListener('keydown', close)
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', close) }
-  }, [open])
   const pick = (month: string) => { onChange(month); setOpen(false) }
   const today = currentMonth()
-  return <div className="month-picker-root" ref={root}>
-    <div className="month-picker" role="group" aria-label={label}>
-      <button type="button" aria-label="Mês anterior" onClick={() => onChange(shiftCompetence(value, -1))}>‹</button>
-      <button type="button" className="month-picker-label" aria-expanded={open} aria-controls={panelId}
-        onClick={() => { setYear(Number(value.slice(0, 4))); setOpen(!open) }}>
-        {capitalize(formatMonth(value))}
-      </button>
-      <button type="button" aria-label="Próximo mês" onClick={() => onChange(shiftCompetence(value, 1))}>›</button>
-    </div>
-    {open && <div className="month-panel" id={panelId}>
-      <div className="month-panel-year">
-        <button type="button" aria-label="Ano anterior" onClick={() => setYear(year - 1)}>‹</button>
-        <strong>{year}</strong>
-        <button type="button" aria-label="Próximo ano" onClick={() => setYear(year + 1)}>›</button>
-      </div>
-      <div className="month-panel-grid">
-        {MONTHS.map((name, index) => {
-          const month = `${year}-${String(index + 1).padStart(2, '0')}`
-          return <button type="button" key={month} aria-pressed={month === value} data-today={month === today || undefined} onClick={() => pick(month)}>{name}</button>
-        })}
-      </div>
-      {value !== today && <button type="button" className="month-panel-today" onClick={() => pick(today)}>Ir para o mês atual</button>}
-    </div>}
+  return <div className="month-picker flex w-full items-center gap-1 sm:w-fit in-[.field]:w-full!" role="group" aria-label={label}>
+    <Button type="button" variant="outline" size="icon-lg" aria-label="Mês anterior" onClick={() => onChange(shiftCompetence(value, -1))}><ChevronLeftIcon /></Button>
+    <Popover open={open} onOpenChange={next => { if (next) setYear(Number(value.slice(0, 4))); setOpen(next) }}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" size="lg" className="month-picker-label min-w-0 flex-1 font-semibold">{capitalize(formatMonth(value))}</Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72">
+        <div className="flex items-center justify-between">
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="Ano anterior" onClick={() => setYear(year - 1)}><ChevronLeftIcon /></Button>
+          <strong>{year}</strong>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="Próximo ano" onClick={() => setYear(year + 1)}><ChevronRightIcon /></Button>
+        </div>
+        <div className="grid grid-cols-4 gap-1">
+          {MONTHS.map((name, index) => {
+            const month = `${year}-${String(index + 1).padStart(2, '0')}`
+            const selected = month === value
+            return <Button type="button" key={month} variant={selected ? 'default' : month === today ? 'outline' : 'ghost'} aria-pressed={selected} onClick={() => pick(month)}>{name}</Button>
+          })}
+        </div>
+        {value !== today && <Button type="button" variant="link" size="sm" className="text-muted-foreground" onClick={() => pick(today)}>Ir para o mês atual</Button>}
+      </PopoverContent>
+    </Popover>
+    <Button type="button" variant="outline" size="icon-lg" aria-label="Próximo mês" onClick={() => onChange(shiftCompetence(value, 1))}><ChevronRightIcon /></Button>
   </div>
 }

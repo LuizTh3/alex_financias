@@ -1,4 +1,5 @@
 import { ThemeToggle } from './ThemeToggle'
+import { Button } from '@/components/ui/button'
 import { WelcomeModal } from './WelcomeModal'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
@@ -22,7 +23,7 @@ export function AppLayout() {
       </nav>
       <div className="sidebar-footer">
         <p className="text-sm truncate" title={user?.email || ''}>{user?.email}</p>
-        <button className="text-sm mt-3" disabled={signingOut} onClick={() => { setError(null); setSigningOut(true); void logout().catch(() => setError('Não foi possível sair. Tente novamente.')).finally(() => setSigningOut(false)) }}>{signingOut ? 'Saindo…' : 'Sair da conta'}</button>
+        <Button variant="ghost" size="sm" className="mt-2 -ml-2.5" disabled={signingOut} onClick={() => { setError(null); setSigningOut(true); void logout().catch(() => setError('Não foi possível sair. Tente novamente.')).finally(() => setSigningOut(false)) }}>{signingOut ? 'Saindo…' : 'Sair da conta'}</Button>
         {error && <p role="alert" className="error">{error}</p>}
       </div>
     </aside>

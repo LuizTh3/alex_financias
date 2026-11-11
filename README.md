@@ -1,6 +1,6 @@
 # Alex — Finanças pessoais
 
-Base de uma aplicação pessoal responsiva: React + TypeScript + Vite, Tailwind CSS, React Router, React Hook Form + Zod e Firebase (Authentication e Firestore), com hospedagem do site na Vercel. SDK web direto, sem API própria.
+Base de uma aplicação pessoal responsiva: React + TypeScript + Vite, Tailwind CSS com shadcn/ui, React Router, React Hook Form + Zod e Firebase (Authentication e Firestore), com hospedagem do site na Vercel. SDK web direto, sem API própria.
 
 ## Executar
 
@@ -59,7 +59,8 @@ Referências: [Vite na Vercel](https://vercel.com/docs/frameworks/frontend/vite)
 
 - `src/pages`: as seis telas (Visão geral, Faturas, Cartões, Previsão dos meses, Rendas, A receber) e o login.
 - `src/forms`: formulários de cartão, lançamento, renda e a receber.
-- `src/components`: cartão visual, seletor de mês, selos, diálogos e demais peças compartilhadas.
+- `src/components/ui`: componentes do [shadcn/ui](https://ui.shadcn.com/) (botões, campos, diálogos, cards, tabela). Adicione novos com `npx shadcn@latest add <nome>`; a configuração fica em `components.json`.
+- `src/components`: peças do app montadas sobre o shadcn/ui: cartão visual, seletor de mês, selos, diálogos de confirmação e de detalhes.
 - `src/domain`: validações e cálculos puros (parcelas, faturas, saldo, previsão). Dinheiro em centavos inteiros; meses `YYYY-MM`; datas `YYYY-MM-DD`.
 - `src/data`: leitura e gravação no Firestore, sempre validadas com Zod.
 - `src/hooks`: assinatura das coleções em tempo real e mês/cartão selecionados na URL.

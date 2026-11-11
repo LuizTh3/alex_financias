@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { MonthPicker } from '../components/MonthPicker'
 import { StatusBadge } from '../components/StatusBadge'
 import { EmptyState } from '../components/EmptyState'
@@ -32,21 +34,21 @@ export function ComponentsPreview() {
     <section className="mt-8"><h2 className="mb-3">Selos</h2><div className="flex gap-2"><StatusBadge done /><StatusBadge done={false} /><StatusBadge kind="receivable" done /><StatusBadge kind="receivable" done={false} /></div></section>
     <section className="mt-8"><h2 className="mb-3">Cartões</h2><div className="card-grid">
       <CreditCardVisual card={{ name: 'Nubank', color: '#8a05be', closingDay: 3, dueDay: 10 }} invoice={{ totalCents: 155637, closingDate: '2026-07-03', dueDate: '2026-07-10', paid: false }}
-        onOpen={() => setDetails(true)} actions={<><button className="secondary">Acessar</button><button className="primary" onClick={() => setConfirm(true)}>Pagar</button></>} />
+        onOpen={() => setDetails(true)} actions={<><Button variant="outline">Acessar</Button><Button onClick={() => setConfirm(true)}>Pagar</Button></>} />
       <CreditCardVisual card={{ name: 'Inter Black', color: '#ff7a00', closingDay: 28, dueDay: 5 }} invoice={{ totalCents: 10000, closingDate: '2026-06-28', dueDate: '2026-07-05', paid: true }} onOpen={() => undefined} />
       <CreditCardVisual card={{ name: 'Cartão claro', color: '#f2e6c9', closingDay: 15, dueDay: 25 }} />
     </div>
     <div className="mt-6"><CreditCardVisual size="large" card={{ name: 'Nubank', color: '#8a05be', closingDay: 3, dueDay: 10 }} invoice={{ totalCents: 155637, closingDate: '2026-07-03', dueDate: '2026-07-10', paid: true }} /></div></section>
     <section className="mt-8"><h2 className="mb-3">Histórico</h2><ul className="installment-list">
-      <InstallmentRow title="Compra sofá" installment={installmentInMonth(sofa, '2026-07')!} onOpen={() => setDetails(true)} actions={<><button className="secondary">Editar</button><button className="secondary">Excluir</button></>} />
+      <InstallmentRow title="Compra sofá" installment={installmentInMonth(sofa, '2026-07')!} onOpen={() => setDetails(true)} actions={<><Button variant="outline">Editar</Button><Button variant="outline">Excluir</Button></>} />
       <InstallmentRow title="Televisão" installment={installmentInMonth(tv, '2026-07')!} onOpen={() => setDetails(true)} />
       <InstallmentRow title="MAICO" installment={{ index: 2, count: 5, month: '2026-07', amountCents: 7000 }} onOpen={() => setDetails(true)} status={<StatusBadge kind="receivable" done={false} />} />
     </ul></section>
     <section className="mt-8 max-w-sm"><h2 className="mb-3">Dinheiro</h2><label htmlFor="money">Valor</label><MoneyInput id="money" value={money} onChange={event => setMoney(event.target.value)} /></section>
-    <section className="mt-8"><h2 className="mb-3">Vazio</h2><div className="panel"><EmptyState title="Nenhum lançamento neste mês" action={<button className="primary">Novo lançamento</button>}>Cadastre uma compra para ver a fatura.</EmptyState></div></section>
+    <section className="mt-8"><h2 className="mb-3">Vazio</h2><Card className="p-0"><EmptyState title="Nenhum lançamento neste mês" action={<Button>Novo lançamento</Button>}>Cadastre uma compra para ver a fatura.</EmptyState></Card></section>
     <section className="mt-8"><h2 className="mb-3">Formulários (não salve: a vitrine não usa dados reais)</h2><div className="flex flex-wrap gap-2">
-      <button className="secondary" onClick={() => setForm('card')}>Cartão</button><button className="secondary" onClick={() => setForm('purchase')}>Lançamento</button>
-      <button className="secondary" onClick={() => setForm('income')}>Renda</button><button className="secondary" onClick={() => setForm('receivable')}>A receber</button>
+      <Button variant="outline" onClick={() => setForm('card')}>Cartão</Button><Button variant="outline" onClick={() => setForm('purchase')}>Lançamento</Button>
+      <Button variant="outline" onClick={() => setForm('income')}>Renda</Button><Button variant="outline" onClick={() => setForm('receivable')}>A receber</Button>
     </div></section>
     {form === 'card' && <CardForm onClose={() => setForm(null)} />}
     {form === 'purchase' && <PurchaseForm card={demoCard} onClose={() => setForm(null)} />}

@@ -1,4 +1,9 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Link } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { useFinanceData } from '../hooks/useCollection'
@@ -33,11 +38,11 @@ export function InvoicesPage() {
   const card = cards.find(item => item.id === cardId)
 
   const selector = <div className="field invoice-card-select">
-    <label htmlFor="invoice-card">Cartão</label>
-    <select id="invoice-card" value={card?.id ?? ''} onChange={event => { setFilter('all'); setCardId(event.target.value || null) }}>
-      <option value="">Selecione o cartão</option>
-      {cards.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-    </select>
+    <Label htmlFor="invoice-card" className="mb-2">Cartão</Label>
+    <NativeSelect id="invoice-card" className="w-full" value={card?.id ?? ''} onChange={event => { setFilter('all'); setCardId(event.target.value || null) }}>
+      <NativeSelectOption value="">Selecione o cartão</NativeSelectOption>
+      {cards.map(item => <NativeSelectOption key={item.id} value={item.id}>{item.name}</NativeSelectOption>)}
+    </NativeSelect>
   </div>
 
   if (loading || error) return <main className="workspace"><header><div><p className="eyebrow">POR CARTÃO</p><h1>Faturas</h1></div></header><LoadState loading={loading} error={error} onRetry={retry} /></main>
@@ -54,37 +59,37 @@ export function InvoicesPage() {
       {card && <MonthPicker value={month} onChange={setMonth} />}
     </header>
     {cards.length === 0
-      ? <div className="panel"><EmptyState icon="▭" title="Nenhum cartão cadastrado" action={<Link className="primary inline-block" to="/cartoes">Cadastrar cartão</Link>}>As faturas aparecem depois que você cadastrar um cartão.</EmptyState></div>
+      ? <Card className="p-0"><EmptyState icon="▭" title="Nenhum cartão cadastrado" action={<Button asChild><Link to="/cartoes">Cadastrar cartão</Link></Button>}>As faturas aparecem depois que você cadastrar um cartão.</EmptyState></Card>
       : !card
-        ? <>{selector}<div className="panel mt-4"><EmptyState icon="▭" title="Selecione o cartão">Escolha um cartão acima para visualizar a fatura.</EmptyState></div></>
+        ? <>{selector}<Card className="p-0 mt-4"><EmptyState icon="▭" title="Selecione o cartão">Escolha um cartão acima para visualizar a fatura.</EmptyState></Card></>
         : <div className="invoice-layout">
           <aside className="invoice-side">
             {selector}
             <CreditCardVisual size="large" card={card} invoice={{ totalCents, paid, ...invoiceDates(card, month) }} />
             <div className="invoice-buttons">
-              <button type="button" className="primary" onClick={() => setEditing('new')}>+ Novo lançamento</button>
-              <button type="button" className={paid ? 'secondary' : 'secondary pay-button'} disabled={!paid && totalCents === 0}
+              <Button onClick={() => setEditing('new')}>+ Novo lançamento</Button>
+              <Button variant="outline" disabled={!paid && totalCents === 0}
                 onClick={() => setPaying({ cardId: card.id, cardName: card.name, month, totalCents, paid })}>
                 {paid ? 'Desmarcar pago' : 'Marcar fatura como paga'}
-              </button>
+              </Button>
             </div>
           </aside>
           <section className="invoice-history" aria-labelledby="history-title">
             <div className="history-heading">
               <h2 id="history-title">Lançamentos de {formatMonth(month)}</h2>
-              <div className="filter-tabs" role="group" aria-label="Filtrar lançamentos">
-                {FILTERS.map(([value, label]) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}<span>{counts[value]}</span></button>)}
-              </div>
+              <ToggleGroup type="single" variant="outline" aria-label="Filtrar lançamentos" value={filter} onValueChange={value => { if (value) setFilter(value as PurchaseFilter) }}>
+                {FILTERS.map(([value, label]) => <ToggleGroupItem key={value} value={value} aria-label={`${label}: ${counts[value]}`}>{label}<span className="text-xs text-muted-foreground">{counts[value]}</span></ToggleGroupItem>)}
+              </ToggleGroup>
             </div>
             {rows.length === 0
-              ? <div className="panel"><EmptyState title={allRows.length ? 'Nenhum lançamento neste filtro' : 'Nenhum lançamento nesta fatura'}
-                action={!allRows.length && <button type="button" className="primary" onClick={() => setEditing('new')}>Lançar compra</button>}>
+              ? <Card className="p-0"><EmptyState title={allRows.length ? 'Nenhum lançamento neste filtro' : 'Nenhum lançamento nesta fatura'}
+                action={!allRows.length && <Button onClick={() => setEditing('new')}>Lançar compra</Button>}>
                 {allRows.length ? 'Escolha outro filtro para ver os demais.' : `Não há parcelas do ${card.name} vencendo em ${formatMonth(month)}.`}
-              </EmptyState></div>
+              </EmptyState></Card>
               : <ul className="installment-list">{rows.map(row => <InstallmentRow key={row.purchase.id} title={row.purchase.title} installment={row.installment}
                 onOpen={() => setDetails(row)} actions={<>
-                  <button type="button" className="secondary" onClick={() => setEditing(row.purchase)}>Editar</button>
-                  <button type="button" className="secondary" onClick={() => setRemoving(row.purchase)}>Excluir</button>
+                  <Button variant="outline" onClick={() => setEditing(row.purchase)}>Editar</Button>
+                  <Button variant="outline" onClick={() => setRemoving(row.purchase)}>Excluir</Button>
                 </>} />)}</ul>}
           </section>
         </div>}
@@ -98,7 +103,7 @@ export function InvoicesPage() {
         ['Data da compra', formatDate(details.purchase.purchaseDate)],
         ['Vencimentos', details.installment.count === 1 ? formatMonth(details.purchase.firstDueMonth) : `${formatMonth(details.purchase.firstDueMonth)} a ${formatMonth(lastMonthOf(details.purchase))}`],
       ]}
-      actions={<button type="button" className="secondary" onClick={() => { setEditing(details.purchase); setDetails(null) }}>Editar</button>} />}
+      actions={<Button variant="outline" onClick={() => { setEditing(details.purchase); setDetails(null) }}>Editar</Button>} />}
     {removing && <ConfirmDialog danger title={removing.installmentCount > 1 ? 'Excluir todas as parcelas?' : 'Excluir lançamento?'}
       confirmLabel={removing.installmentCount > 1 ? `Excluir as ${removing.installmentCount} parcelas` : 'Excluir'}
       onClose={() => setRemoving(null)} onConfirm={() => deletePurchase(user!.uid, removing.id)}>

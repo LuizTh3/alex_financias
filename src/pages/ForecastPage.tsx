@@ -1,4 +1,6 @@
 import { Link } from 'react-router'
+import { Card } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useFinanceData } from '../hooks/useCollection'
 import { useMonthParam } from '../hooks/useUrlState'
 import { forecast } from '../domain/summary'
@@ -29,20 +31,20 @@ export function ForecastPage() {
     {!loading && !error && <>
       <p className="muted mb-4 max-w-3xl">Saldo previsto = renda − faturas dos cartões. A coluna <strong>A receber</strong> é só informativa e não entra no saldo.
         {negative > 0 && <> <strong className="text-[var(--danger)]">{negative} {negative === 1 ? 'mês fica' : 'meses ficam'} negativo{negative === 1 ? '' : 's'}.</strong></>}</p>
-      <div className="table-scroll panel">
-        <table className="forecast-table">
-          <thead><tr><th scope="col">Mês</th><th scope="col">Renda</th><th scope="col">A pagar</th><th scope="col">Saldo previsto</th><th scope="col" className="informative">A receber <span>(informativo)</span></th></tr></thead>
-          <tbody>{months.map(item => <tr key={item.month} className={item.month === today ? 'is-current' : undefined}>
-            <th scope="row"><Link className="record-link" to={item.month === today ? '/' : `/?mes=${item.month}`} title="Abrir na Visão geral">{capitalize(formatMonth(item.month))}</Link></th>
-            <td data-label="Renda">{formatMoney(item.incomeCents)}</td>
-            <td data-label="A pagar">{formatMoney(item.payableCents)}</td>
-            <td data-label="Saldo previsto" className={item.balanceCents < 0 ? 'is-negative' : 'is-positive'}>{formatMoney(item.balanceCents)}</td>
-            <td data-label="A receber (informativo)" className="informative">{formatMoney(item.receivableCents)}</td>
-          </tr>)}</tbody>
-          <tfoot><tr><th scope="row">Total em 12 meses</th><td data-label="Renda">{formatMoney(totals.income)}</td><td data-label="A pagar">{formatMoney(totals.payable)}</td>
-            <td data-label="Saldo previsto" className={totals.balance < 0 ? 'is-negative' : 'is-positive'}>{formatMoney(totals.balance)}</td><td data-label="A receber (informativo)" className="informative">{formatMoney(totals.receivable)}</td></tr></tfoot>
-        </table>
-      </div>
+      <Card className="forecast-card p-0">
+        <Table className="forecast-table">
+          <TableHeader><TableRow><TableHead scope="col">Mês</TableHead><TableHead scope="col">Renda</TableHead><TableHead scope="col">A pagar</TableHead><TableHead scope="col">Saldo previsto</TableHead><TableHead scope="col" className="informative">A receber <span>(informativo)</span></TableHead></TableRow></TableHeader>
+          <TableBody>{months.map(item => <TableRow key={item.month} className={item.month === today ? 'is-current' : undefined}>
+            <TableHead scope="row" className="font-medium text-foreground"><Link className="record-link" to={item.month === today ? '/' : `/?mes=${item.month}`} title="Abrir na Visão geral">{capitalize(formatMonth(item.month))}</Link></TableHead>
+            <TableCell data-label="Renda">{formatMoney(item.incomeCents)}</TableCell>
+            <TableCell data-label="A pagar">{formatMoney(item.payableCents)}</TableCell>
+            <TableCell data-label="Saldo previsto" className={item.balanceCents < 0 ? 'is-negative' : 'is-positive'}>{formatMoney(item.balanceCents)}</TableCell>
+            <TableCell data-label="A receber (informativo)" className="informative">{formatMoney(item.receivableCents)}</TableCell>
+          </TableRow>)}</TableBody>
+          <TableFooter><TableRow><TableHead scope="row" className="text-foreground">Total em 12 meses</TableHead><TableCell data-label="Renda">{formatMoney(totals.income)}</TableCell><TableCell data-label="A pagar">{formatMoney(totals.payable)}</TableCell>
+            <TableCell data-label="Saldo previsto" className={totals.balance < 0 ? 'is-negative' : 'is-positive'}>{formatMoney(totals.balance)}</TableCell><TableCell data-label="A receber (informativo)" className="informative">{formatMoney(totals.receivable)}</TableCell></TableRow></TableFooter>
+        </Table>
+      </Card>
     </>}
   </main>
 }

@@ -1,4 +1,7 @@
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useAuth } from '../contexts/AuthContext'
 import { centsToInput, currentMonth } from '../domain/format'
 import { shiftCompetence } from '../domain/calendar'
@@ -7,7 +10,7 @@ import { createIncome, updateIncome } from '../data/store'
 import { Modal } from '../components/Modal'
 import { MoneyInput } from '../components/MoneyInput'
 import { MonthPicker } from '../components/MonthPicker'
-import { applyIssues, Field, FormActions, invalid, readMoney, useSubmit } from './formKit'
+import { applyIssues, Field, fieldClass, FormActions, invalid, readMoney, useSubmit } from './formKit'
 
 type Values = { title: string; amount: string; startMonth: string; hasEnd: boolean; endMonth: string }
 
@@ -16,7 +19,7 @@ export function IncomeForm({ income, onClose }: { income?: Income; onClose: () =
   const { user } = useAuth()
   const { error, run } = useSubmit()
   const start = income?.startMonth ?? currentMonth()
-  const { register, handleSubmit, watch, setValue, setError, clearErrors, formState: { errors, isSubmitting } } = useForm<Values>({
+  const { register, control, handleSubmit, watch, setValue, setError, clearErrors, formState: { errors, isSubmitting } } = useForm<Values>({
     defaultValues: {
       title: income?.title ?? '', amount: income ? centsToInput(income.amountCents) : '', startMonth: start,
       hasEnd: !!income?.endMonth, endMonth: income?.endMonth ?? shiftCompetence(start, 11),
@@ -36,7 +39,7 @@ export function IncomeForm({ income, onClose }: { income?: Income; onClose: () =
     <form noValidate onSubmit={submit}>
       <fieldset disabled={isSubmitting}>
         <Field id="income-title" label="Título" error={errors.title?.message}>
-          <input id="income-title" autoFocus maxLength={120} autoComplete="off" placeholder="Ex.: Salário" {...register('title')} {...invalid('income-title', errors.title?.message)} />
+          <Input id="income-title" className={fieldClass} autoFocus maxLength={120} autoComplete="off" placeholder="Ex.: Salário" {...register('title')} {...invalid('income-title', errors.title?.message)} />
         </Field>
         <Field id="income-amount" label="Valor mensal" error={errors.amount?.message}>
           <MoneyInput id="income-amount" {...register('amount')} {...invalid('income-amount', errors.amount?.message)} />
@@ -44,7 +47,10 @@ export function IncomeForm({ income, onClose }: { income?: Income; onClose: () =
         <Field id="income-start" label="Início da vigência" error={errors.startMonth?.message}>
           <MonthPicker label="Início da vigência" value={values.startMonth} onChange={month => { clearErrors(); setValue('startMonth', month) }} />
         </Field>
-        <label className="checkbox-label mt-5"><input type="checkbox" {...register('hasEnd')} /> Esta renda tem data para terminar</label>
+        <Controller control={control} name="hasEnd" render={({ field }) => <div className="mt-5 flex items-center gap-2">
+          <Checkbox id="income-has-end" checked={field.value} onCheckedChange={checked => field.onChange(checked === true)} />
+          <Label htmlFor="income-has-end" className="font-normal">Esta renda tem data para terminar</Label>
+        </div>} />
         {values.hasEnd
           ? <Field id="income-end" label="Último mês" error={errors.endMonth?.message}>
             <MonthPicker label="Último mês" value={values.endMonth} onChange={month => { clearErrors('endMonth'); setValue('endMonth', month) }} />

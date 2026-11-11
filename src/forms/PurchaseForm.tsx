@@ -1,5 +1,10 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { Textarea } from '@/components/ui/textarea'
+import { Controller, useForm } from 'react-hook-form'
 import { useAuth } from '../contexts/AuthContext'
 import { civilDateSchema, suggestFirstCompetence, todayCivil } from '../domain/calendar'
 import { centsToInput, formatMoney, formatShortMonth } from '../domain/format'
@@ -10,7 +15,7 @@ import { createPurchase, updatePurchase } from '../data/store'
 import { Modal } from '../components/Modal'
 import { MoneyInput } from '../components/MoneyInput'
 import { MonthPicker } from '../components/MonthPicker'
-import { applyIssues, Field, FormActions, invalid, readMoney, useSubmit } from './formKit'
+import { applyIssues, Field, fieldClass, FormActions, invalid, readMoney, useSubmit } from './formKit'
 
 type Values = { title: string; amount: string; installment: boolean; installmentCount: string; purchaseDate: string; firstDueMonth: string; description: string }
 
@@ -23,7 +28,7 @@ export function PurchaseForm({ card, purchase, onClose }: { card: Card; purchase
   const { error, run } = useSubmit()
   const today = todayCivil()
   const [dueTouched, setDueTouched] = useState(!!purchase)
-  const { register, handleSubmit, watch, setValue, setError, clearErrors, formState: { errors, isSubmitting } } = useForm<Values>({
+  const { register, control, handleSubmit, watch, setValue, setError, clearErrors, formState: { errors, isSubmitting } } = useForm<Values>({
     defaultValues: purchase
       ? { title: purchase.title, amount: centsToInput(purchase.totalCents), installment: purchase.installmentCount > 1, installmentCount: String(purchase.installmentCount),
         purchaseDate: purchase.purchaseDate, firstDueMonth: purchase.firstDueMonth, description: purchase.description }
@@ -61,20 +66,23 @@ export function PurchaseForm({ card, purchase, onClose }: { card: Card; purchase
     <form noValidate onSubmit={submit}>
       <fieldset disabled={isSubmitting}>
         <Field id="purchase-title" label="Título da compra" error={errors.title?.message}>
-          <input id="purchase-title" autoFocus maxLength={120} autoComplete="off" placeholder="Ex.: Compra sofá" {...register('title')} {...invalid('purchase-title', errors.title?.message)} />
+          <Input id="purchase-title" className={fieldClass} autoFocus maxLength={120} autoComplete="off" placeholder="Ex.: Compra sofá" {...register('title')} {...invalid('purchase-title', errors.title?.message)} />
         </Field>
         <Field id="purchase-amount" label={values.installment ? 'Valor total da compra' : 'Valor'} error={errors.amount?.message}>
           <MoneyInput id="purchase-amount" {...register('amount')} {...invalid('purchase-amount', errors.amount?.message)} />
         </Field>
-        <label className="checkbox-label mt-4"><input type="checkbox" {...register('installment')} /> Compra parcelada</label>
+        <Controller control={control} name="installment" render={({ field }) => <div className="mt-4 flex items-center gap-2">
+          <Checkbox id="purchase-installment" checked={field.value} onCheckedChange={checked => field.onChange(checked === true)} />
+          <Label htmlFor="purchase-installment" className="font-normal">Compra parcelada</Label>
+        </div>} />
         {values.installment && <Field id="purchase-count" label="Quantidade de parcelas" error={errors.installmentCount?.message}>
-          <select id="purchase-count" {...register('installmentCount')}>
-            {Array.from({ length: MAX_INSTALLMENTS - 1 }, (_, index) => index + 2).map(value => <option key={value} value={value}>{value}x</option>)}
-          </select>
+          <NativeSelect id="purchase-count" className="w-full" {...register('installmentCount')}>
+            {Array.from({ length: MAX_INSTALLMENTS - 1 }, (_, index) => index + 2).map(value => <NativeSelectOption key={value} value={value}>{value}x</NativeSelectOption>)}
+          </NativeSelect>
         </Field>}
         <div className="form-grid">
           <Field id="purchase-date" label="Data da compra" error={errors.purchaseDate?.message}>
-            <input id="purchase-date" type="date" {...register('purchaseDate', {
+            <Input id="purchase-date" className={fieldClass} type="date" {...register('purchaseDate', {
               onChange: event => { const next = suggestion(card, event.target.value); if (!dueTouched && next) setValue('firstDueMonth', next) },
             })} {...invalid('purchase-date', errors.purchaseDate?.message)} />
           </Field>
@@ -85,7 +93,7 @@ export function PurchaseForm({ card, purchase, onClose }: { card: Card; purchase
         {!dueTouched && <p className="field-hint">Sugerido pelo fechamento do cartão (dia {card.closingDay}). Ajuste se o banco usar outro mês.</p>}
         {preview && <p className="notice mt-4" aria-live="polite">{preview}</p>}
         <Field id="purchase-description" label="Descrição (opcional)" error={errors.description?.message}>
-          <textarea id="purchase-description" maxLength={1000} {...register('description')} />
+          <Textarea id="purchase-description" maxLength={1000} {...register('description')} />
         </Field>
       </fieldset>
       {error && <p role="alert" className="error">{error}</p>}
