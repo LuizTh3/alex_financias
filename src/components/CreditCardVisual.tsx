@@ -5,6 +5,14 @@ import { formatDate, formatMoney } from '../domain/format'
 
 export type CardInvoiceInfo = { totalCents: number; closingDate: string; dueDate: string; paid: boolean; chargeCount?: number }
 
+/** Reflexo decorativo escolhido de forma aleatória, mas estável: o mesmo cartão sempre recebe o mesmo. */
+const REFLECTIONS = 4
+function reflectionOf(seed: string) {
+  let hash = 0
+  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) | 0
+  return (Math.abs(hash) % REFLECTIONS) + 1
+}
+
 /** Chip dourado desenhado em SVG. */
 function Chip() {
   return <svg className="credit-card-chip" viewBox="0 0 48 36" aria-hidden="true">
@@ -25,7 +33,7 @@ export function CreditCardVisual({ card, invoice, onOpen, actions, size = 'regul
 }) {
   const style = { '--card-color': card.color } as CSSProperties
   const count = invoice?.chargeCount
-  return <article className={`credit-card size-${size}`} style={style}>
+  return <article className={`credit-card size-${size} reflection-${reflectionOf(card.name + card.color)}`} style={style}>
     {onOpen && <button type="button" className="credit-card-hit" onClick={onOpen} aria-label={`Abrir fatura do cartão ${card.name}`} />}
     <div className="credit-card-top">
       <span className="credit-card-name">{card.name}</span>
