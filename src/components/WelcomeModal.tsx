@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { Modal } from './Modal'
-import { needsWelcome, completeWelcome } from '../repositories/userRepository'
+import { needsWelcome, completeWelcome } from '../data/user'
 
 export function WelcomeModal({ uid }: { uid: string }) {
   const [open, setOpen] = useState(false)

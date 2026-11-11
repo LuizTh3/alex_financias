@@ -1,5 +1,7 @@
 # Plano de refatoração — simplificação (v0.3.0)
 
+> **Situação (11/11/2026):** fases 1 a 7 concluídas; falta a fase 8 (verificação final e publicação). O modelo implementado está em [modelo.md](modelo.md).
+
 Base: diagrama de fluxo do FigJam (Visão geral, Faturas, Cartões, Previsão dos meses, Rendas, A receber) comparado com o código atual da branch `develop` (v0.2.0).
 
 ## 1. Diagnóstico: por que o app ficou complicado

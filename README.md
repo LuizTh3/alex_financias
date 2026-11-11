@@ -57,42 +57,39 @@ Referências: [Vite na Vercel](https://vercel.com/docs/frameworks/frontend/vite)
 
 ## Estrutura
 
-- `src/pages`: login, cartões/categorias, lançamentos e consultas mensais.
-- `src/components`: componentes compartilhados e proteção de rotas.
-- `src/contexts`: sessão com hooks/context; persistência da sessão no navegador por aba.
-- `src/domain`: validações, modelos e cálculos puros. Dinheiro em centavos inteiros; datas de vencimento `YYYY-MM-DD`; meses `YYYY-MM`.
-- `src/repositories`: assinaturas validadas com Zod e transações Firestore de cadastros e lançamentos/parcelas.
-- `src/lib`: inicialização do SDK e validação da configuração.
+- `src/pages`: as seis telas (Visão geral, Faturas, Cartões, Previsão dos meses, Rendas, A receber) e o login.
+- `src/forms`: formulários de cartão, lançamento, renda e a receber.
+- `src/components`: cartão visual, seletor de mês, selos, diálogos e demais peças compartilhadas.
+- `src/domain`: validações e cálculos puros (parcelas, faturas, saldo, previsão). Dinheiro em centavos inteiros; meses `YYYY-MM`; datas `YYYY-MM-DD`.
+- `src/data`: leitura e gravação no Firestore, sempre validadas com Zod.
+- `src/hooks`: assinatura das coleções em tempo real e mês/cartão selecionados na URL.
 
-## Cartões e categorias
+O [modelo de dados](docs/modelo.md) descreve as coleções e as regras de cálculo.
 
-Acesse **Cartões** ou **Categorias** para cadastrar e editar. Arquivamento tem confirmação e preserva os vínculos; os filtros Ativos/Arquivados/Todos permitem reativar cadastros. Cartões têm nome, cor, fechamento e vencimento; categorias têm nome e aplicação em despesas, recebimentos ou ambos.
+## Como funciona
 
-Cada gravação usa `serverTimestamp()`. Edições e arquivamentos usam transações e detectam versões alteradas por outra aba. IDs estáveis por formulário e bloqueio de envio impedem duplicação em tentativas repetidas. Horários são exibidos em `America/Rio_Branco`.
+A ideia central é **gravar só o que você digita e calcular o resto**. Uma compra parcelada é um único documento; as parcelas, as faturas, o saldo e a previsão são calculados na tela.
 
-As regras locais agora autorizam cartões e categorias para o UID pessoal, validam os campos, protegem `createdAt` e negam exclusão física. Lançamentos, parcelas e materialização de faturas também têm regras específicas de gravação atômica; pagamento integral/reversão de faturas e seu histórico têm validação específica; recorrências versionadas, ocorrências e confirmações diretas têm regras específicas. É necessário publicar `firestore.rules` no Firebase para os formulários funcionarem no projeto remoto.
+- **Cartões:** nome, cor, dia de fechamento e de vencimento. Cartão sem compras nem faturas pagas é excluído; com dados, é inativado e some das telas (os dados continuam guardados).
+- **Faturas:** escolha o cartão (ou chegue por um cartão da Visão geral/Cartões) e o mês. Lance compras à vista ou parceladas (até 24x); o 1º mês de vencimento é sugerido pelo fechamento. O histórico mostra "Parcela 7/12" e permite filtrar, editar, excluir (parcelado: todas as parcelas) e ver detalhes. "Marcar como paga" é só uma identificação, com confirmação.
+- **Rendas:** valor mensal com início e fim opcional. Editar altera todos os meses; para mudar o valor a partir de um mês, encerre a renda e crie outra.
+- **A receber:** valores que terceiros lhe devem, com marcação de recebido por parcela. Não entra no saldo.
+- **Visão geral:** renda, a pagar (soma das faturas dos cartões ativos) e saldo previsto (renda − a pagar) do mês, os cartões com a fatura e o total a receber.
+- **Previsão dos meses:** 12 meses a partir do mês escolhido, com A receber em coluna informativa.
 
-O [contrato financeiro](docs/financial-contract.md) registra o modelo Firestore, os comportamentos já implementados e os requisitos acordados para compras, parcelas, pagamentos e recorrências. Recorrências e confirmações diretas agora também estão disponíveis. Não há dados fictícios nem migração automática de documentos antigos.
+O mês e o cartão escolhidos ficam no endereço (`/faturas?cartao=…&mes=2026-12`): recarregar ou compartilhar o link mantém a seleção.
 
-## Lançamentos e motor financeiro
+## Desenvolvimento com emulador
 
-Acesse **Lançamentos** para criar despesas ou recebimentos, conferir a sugestão de competência e a prévia das parcelas, editar o conjunto completo ou excluir com confirmação. Dinheiro usa centavos inteiros; o total é dividido exatamente. Limite de 24 parcelas por lançamento. Operações acima de cinco parcelas são gravadas por etapas verificadas, com retomada após interrupções.
+`npm run dev:emulator` sobe o login e o Firestore do emulador local e o app em http://localhost:5180, ligado a eles e com as regras de `firestore.rules`. Não usa o `.env` nem o Firebase real (projeto `demo-alex-financias`, configurado em `.env.emulator`). Como o app não tem cadastro público, crie um usuário de teste pela API do emulador (os dados somem ao desligá-lo):
 
-O [motor financeiro](docs/financial-engine.md) documenta os cálculos, o limite, os comandos idempotentes, as transações, as revisões, a exclusão com auditoria e os bloqueios de parcelas/faturas liquidadas. As cobranças futuras são geradas no cadastro e ficam disponíveis nas consultas mensais. A confirmação integral/reversão de faturas já está disponível. Recorrências versionadas e confirmações diretas já estão integradas às consultas mensais.
+```sh
+curl -X POST "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo" -H "Content-Type: application/json" -d "{\"email\":\"teste@exemplo.test\",\"password\":\"senha-de-teste\"}"
+```
 
-## Faturas mensais e histórico
+Em desenvolvimento há também a vitrine de componentes em `/dev/componentes`, que fica fora do build de produção.
 
-Em **Faturas**, consulte mês, cartão e situação, abra a composição das cobranças e confirme o pagamento **integral**. A reversão exige confirmação e libera as cobranças para correção, preservando o pagamento original no histórico. Cartões arquivados continuam visíveis nos períodos com faturas.
-
-O [módulo de faturas](docs/invoices.md) detalha saldos materializados, comandos idempotentes, histórico imutável, concorrência e a ferramenta administrativa de migração dos cabeçalhos anteriores (modo de conferência por padrão). Pagamento não cria outra despesa e não altera quitações individuais das parcelas em cartão.
-
-## Recorrências e recebimentos parcelados
-
-Em **Despesas fixas**, alterne entre ocorrências mensais e modelos com histórico de versões. Crie, pause, retome ou encerre a partir de uma competência. Ocorrências já geradas permanecem intactas; a geração automática cria apenas as faltantes, sem duplicar em duas abas. Compromissos futuros incluem projeções dos próximos 12 meses.
-
-Em **A receber**, cadastre entradas parceladas, confirme ou desfaça cada recebimento e consulte seu histórico. Ocorrências diretas de gastos fixos também têm pagamento reversível; as cobradas em cartão derivam a quitação da fatura.
-
-O [guia de recorrências e recebimentos](docs/recurrences-and-receivables.md) detalha vigências, ocorrências, preservação dos registros existentes, auditoria, repositórios e regras de acesso. Não é necessário migrar parcelas anteriores para usar confirmações diretas.
+Os emuladores exigem Java 21+. No Windows, o script já contorna a falha "Unable to establish loopback connection", causada por espaço no caminho da pasta do usuário.
 
 ## Validação e publicação
 
@@ -102,17 +99,14 @@ npm run build
 npm run test:rules
 ```
 
-`npm run test:rules` exige Java 21+ para o emulador Firestore. Os testes de regras e transações são ignorados no `npm test` quando não há emulador; o comando específico inicia um emulador com projeto demo, sem usar dados de produção. A publicação atual do site é feita pela Vercel, conforme o guia acima. O comando opcional `npm run deploy` permanece como alternativa para Firebase Hosting: publica regras, índices e o site no Firebase, e não na Vercel.
+`npm test` roda os testes de domínio, componentes e telas; os de regras e repositórios são ignorados sem emulador. `npm run test:rules` sobe o emulador Firestore com projeto demo e roda esses testes.
+
+Ao publicar uma versão que muda as regras, publique as regras e o site juntos: `npx firebase deploy --only firestore:rules,firestore:indexes` e um novo deploy na Vercel. O comando opcional `npm run deploy` publica regras, índices e o site no Firebase Hosting, e não na Vercel.
 
 ## Licença e versionamento
 
 Projeto open source sob a [licença MIT](LICENSE). Permite uso, modificação e distribuição, inclusive comercial, preservando os avisos da licença. As dependências mantêm suas respectivas licenças.
 
-Versão atual: **0.2.0**. O projeto segue [Versionamento Semântico](https://semver.org/lang/pt-BR/): novas funcionalidades incrementam a versão menor e correções incrementam a versão de patch. A série `0.x` indica desenvolvimento inicial, sem compromisso de estabilidade definitiva. Consulte o [histórico de versões](CHANGELOG.md).
+Versão atual: **0.3.0**. O projeto segue [Versionamento Semântico](https://semver.org/lang/pt-BR/): novas funcionalidades incrementam a versão menor e correções incrementam a versão de patch. A série `0.x` indica desenvolvimento inicial, sem compromisso de estabilidade definitiva. Consulte o [histórico de versões](CHANGELOG.md).
 
 O campo `private: true` no package.json apenas impede publicação acidental no npm; não altera a licença do código.
-
-
-### Parcelamentos até 24x
-
-Despesas e recebimentos aceitam de 1 a 24 parcelas. Operações que envolvem mais de cinco parcelas são salvas por etapas verificadas no Firestore. Durante a gravação, o sistema aguarda a conclusão para exibir os saldos; se houver interrupção, use **Retomar parcelamento**. Não é necessário backend nem migração dos dados atuais. Publique as novas regras do Firestore antes de atualizar o frontend.

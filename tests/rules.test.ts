@@ -16,7 +16,7 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)('regras do modelo simplifi
   let db: Firestore
   const path = (name: string, id: string) => doc(db, `users/${owner}/${name}/${id}`)
   beforeAll(async () => {
-    env = await initializeTestEnvironment({ projectId: 'demo-alex-simple-rules', firestore: { rules: readFileSync('firestore.simplified.rules', 'utf8') } })
+    env = await initializeTestEnvironment({ projectId: 'demo-alex-rules', firestore: { rules: readFileSync('firestore.rules', 'utf8') } })
   })
   beforeEach(async () => {
     await env.clearFirestore()

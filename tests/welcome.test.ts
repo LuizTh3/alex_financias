@@ -7,7 +7,7 @@ vi.mock('firebase/firestore', () => ({
   serverTimestamp: () => 'server-time',
   runTransaction: async (_db: unknown, callback: (tx: unknown) => Promise<void>) => callback({ get: async () => ({ exists: () => state.exists }), set: state.write }),
 }))
-import { completeWelcome, needsWelcome } from '../src/repositories/userRepository'
+import { completeWelcome, needsWelcome } from '../src/data/user'
 describe('apresentação inicial', () => {
   beforeEach(() => { state.exists = false; state.write.mockClear(); state.read.mockReset(); state.read.mockResolvedValue({ exists: () => state.exists }) })
   it('mostra a apresentação somente quando o documento não existe', async () => {

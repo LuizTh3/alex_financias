@@ -24,10 +24,13 @@ function firstRows<K extends CollectionName>(name: K) {
 describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)('repositórios do modelo simplificado', () => {
   let env: RulesTestEnvironment
   beforeAll(async () => {
-    env = await initializeTestEnvironment({ projectId: 'demo-alex-simple-repo', firestore: { rules: readFileSync('firestore.simplified.rules', 'utf8') } })
+    env = await initializeTestEnvironment({ projectId: 'demo-alex-repository', firestore: { rules: readFileSync('firestore.rules', 'utf8') } })
+  })
+  // Conexão nova por teste: o cache local não traz documentos do teste anterior.
+  beforeEach(async () => {
+    await env.clearFirestore()
     state.db = env.authenticatedContext(uid).firestore() as unknown as Firestore
   })
-  beforeEach(async () => { await env.clearFirestore() })
   afterAll(async () => { await env?.cleanup() })
 
   it('cria e edita cartão, e lê pelo assinante', async () => {
