@@ -1,4 +1,5 @@
 import { ThemeToggle } from './ThemeToggle'
+import { WelcomeSplash } from './WelcomeSplash'
 import { Button } from '@/components/ui/button'
 import { WelcomeModal } from './WelcomeModal'
 import { useState } from 'react'
@@ -27,6 +28,6 @@ export function AppLayout() {
         {error && <p role="alert" className="error">{error}</p>}
       </div>
     </aside>
-    <div id="page-content" className="page-content" tabIndex={-1}>{user && <Outlet />}{user && <WelcomeModal key={user.uid} uid={user.uid} />}</div>
+    <div id="page-content" className="page-content" tabIndex={-1}>{user && <Outlet />}{user && <WelcomeModal key={user.uid} uid={user.uid} />}{user && <WelcomeSplash />}</div>
   </div>
 }
