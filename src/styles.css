@@ -336,45 +336,42 @@
 /* Em telas muito estreitas, as informações do cartão podem quebrar linha. */
 @media (max-width: 420px) { .credit-card-info { flex-wrap: wrap; row-gap: .6rem; } }
 
-/* ===== Animação de boas-vindas após o login ===== */
-.welcome-splash { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; overflow: hidden; cursor: pointer; color: #eef6f0;
-  background: radial-gradient(120% 90% at 50% 110%, #1d4936 0%, #0d1f19 55%, #07110d 100%); }
+/* ===== Animação de boas-vindas após o login (mesmo visual da tela de login) ===== */
 /* O fundo nasce opaco no primeiro quadro, para a tela inicial nunca aparecer antes; só o conteúdo entra animado. */
-.welcome-splash-content, .welcome-splash-grid { animation: splash-in .5s ease-out both; }
+.welcome-splash { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 1.25rem; overflow: hidden; cursor: pointer;
+  background: radial-gradient(80% 60% at 0% 0%, #b9f3dd 0%, transparent 60%), radial-gradient(70% 70% at 100% 100%, #8fe3b9 0%, transparent 60%), linear-gradient(160deg, #dcf7ec, #a9e5c6); }
 .welcome-splash.is-leaving { animation: splash-out .6s ease-in forwards; }
-.welcome-splash-grid { position: absolute; inset: -50%; background-image: linear-gradient(#8bd5aa14 1px, transparent 1px), linear-gradient(90deg, #8bd5aa14 1px, transparent 1px);
-  background-size: 48px 48px; transform: perspective(600px) rotateX(58deg) translateY(10%); animation: splash-grid 6s linear infinite; mask-image: radial-gradient(closest-side, #000 30%, transparent); }
-.welcome-splash-glow { position: absolute; width: 60vmin; height: 60vmin; border-radius: 50%; background: radial-gradient(circle, #8bd5aa33, transparent 65%); filter: blur(10px); animation: splash-pulse 2.4s ease-in-out infinite; }
-.welcome-splash-coin { position: absolute; bottom: -2rem; font-size: .9rem; font-weight: 700; color: #8bd5aa; opacity: 0; animation-name: splash-float; animation-timing-function: ease-out; animation-iteration-count: infinite; }
-.welcome-splash-content { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 1.5rem; max-width: 36rem; }
-.welcome-splash-chart { width: min(320px, 80vw); height: auto; margin-bottom: 1.75rem; overflow: visible; }
-.welcome-splash-bar { fill: #8bd5aa22; transform-box: fill-box; transform-origin: bottom; animation: splash-bar .7s cubic-bezier(.2,.8,.2,1) both; }
-.welcome-splash-area { opacity: 0; animation: splash-fade .8s ease-out 1.1s forwards; }
-.welcome-splash-line { fill: none; stroke: #8bd5aa; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; filter: drop-shadow(0 0 6px #8bd5aa99); animation: splash-draw 1.3s cubic-bezier(.6,.1,.2,1) .35s forwards; }
-.welcome-splash-dot { fill: #c1efd0; opacity: 0; transform-box: fill-box; transform-origin: center; animation: splash-dot .5s ease-out 1.6s forwards, splash-ping 1.4s ease-out 2.1s infinite; }
-.welcome-splash-eyebrow { font-size: .7rem; letter-spacing: .3em; color: #8bd5aa; opacity: 0; animation: splash-rise .6s ease-out .9s forwards; }
-.welcome-splash-title { margin-top: .6rem; font-size: clamp(2.4rem, 7vw, 4rem); font-weight: 700; letter-spacing: -.04em; opacity: 0;
-  background: linear-gradient(90deg, #eef6f0, #8bd5aa, #eef6f0); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
-  animation: splash-rise .7s cubic-bezier(.2,.8,.2,1) 1.1s forwards, splash-shine 2.5s linear 1.6s infinite; }
-.welcome-splash-text { margin-top: .9rem; font-size: 1rem; line-height: 1.7; color: #c1d1c6; opacity: 0; animation: splash-rise .7s ease-out 1.45s forwards; }
-.welcome-splash-progress { margin-top: 2rem; width: 10rem; height: 3px; border-radius: 3px; background: #ffffff1a; overflow: hidden; }
-.welcome-splash-progress span { display: block; height: 100%; background: #8bd5aa; transform-origin: left; animation: splash-progress 3.4s linear forwards; }
-@keyframes splash-in { from { opacity: 0 } to { opacity: 1 } }
+.welcome-splash-bill { position: absolute; left: -4rem; font-size: 2.2rem; opacity: .9; animation: splash-fly linear infinite; filter: drop-shadow(0 6px 6px #15503a33); }
+.welcome-splash-card { position: relative; width: min(30rem, 100%); display: flex; flex-direction: column; align-items: center; gap: .9rem; padding: 2.25rem 2rem 2rem; text-align: center; color: #f2fbf6;
+  border-radius: 1.4rem 1.4rem 1.4rem 4rem; background-color: #0b0e0c;
+  background-image: radial-gradient(38% 30% at 18% 22%, #1d2420 0 60%, transparent 61%), radial-gradient(30% 26% at 72% 18%, #191f1c 0 60%, transparent 61%),
+    radial-gradient(34% 28% at 82% 62%, #1d2420 0 60%, transparent 61%), radial-gradient(28% 24% at 30% 72%, #191f1c 0 60%, transparent 61%);
+  background-size: 220px 190px; box-shadow: 0 30px 80px -30px #15503a; animation: splash-pop .6s cubic-bezier(.2,1.4,.4,1) both, login-camo 30s linear infinite; }
+.welcome-splash-logo { display: inline-flex; align-items: center; gap: .45rem; font-size: 1.6rem; font-weight: 800; letter-spacing: -.04em; }
+.welcome-splash-logo svg { width: 1.8rem; height: 1.8rem; color: #8fe3b9; }
+.welcome-splash-logo span { background: linear-gradient(90deg, #f2fbf6 30%, #8fe3b9); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.welcome-splash-stage { position: relative; width: 11rem; height: 9rem; }
+.welcome-splash-pig { position: absolute; left: 50%; bottom: .9rem; width: 6.5rem; height: 6.5rem; translate: -50% 0; color: #8fe3b9; stroke-width: 1.6;
+  transform-origin: 50% 100%; animation: splash-squish .55s ease-out .85s infinite; }
+.welcome-splash-shadow { position: absolute; left: 50%; bottom: .4rem; width: 5rem; height: .6rem; translate: -50% 0; border-radius: 50%; background: #8fe3b933; filter: blur(2px); }
+.welcome-splash-drop { position: absolute; top: -1.5rem; display: grid; place-items: center; width: 1.9rem; height: 1.9rem; margin-left: -.95rem; border-radius: 50%; font-size: .6rem; font-weight: 800; color: #6b4c0c;
+  background: radial-gradient(circle at 35% 30%, #fff3c0, #f2c94c 55%, #c99a2e); box-shadow: inset 0 0 0 2px #e0b23e; opacity: 0; animation: splash-drop 1.65s cubic-bezier(.5,0,.8,.6) infinite; }
+.welcome-splash-title { font-size: clamp(2.2rem, 7vw, 3.2rem); font-weight: 800; letter-spacing: -.045em; line-height: 1.05; opacity: 0; animation: splash-rise .6s cubic-bezier(.2,.8,.2,1) .5s forwards; }
+.welcome-splash-text { line-height: 1.65; color: #c9d6cf; font-size: .95rem; opacity: 0; animation: splash-rise .6s ease-out .75s forwards; }
+.welcome-splash-progress { width: 100%; max-width: 16rem; height: .55rem; margin-top: .4rem; border-radius: 1rem; background: #ffffff1a; overflow: hidden; }
+.welcome-splash-progress span { display: block; height: 100%; border-radius: inherit; background: repeating-linear-gradient(-45deg, #8fe3b9 0 8px, #6fd1a0 8px 16px); transform-origin: left; animation: splash-progress 3.4s cubic-bezier(.4,0,.2,1) forwards; }
+.welcome-splash-hint { font-size: .78rem; color: #8fa89a; }
 @keyframes splash-out { to { opacity: 0; transform: scale(1.04); filter: blur(4px) } }
-@keyframes splash-grid { to { background-position: 0 48px } }
-@keyframes splash-pulse { 50% { transform: scale(1.12); opacity: .7 } }
-@keyframes splash-float { 0% { transform: translateY(0); opacity: 0 } 20% { opacity: .55 } 100% { transform: translateY(-110vh); opacity: 0 } }
-@keyframes splash-bar { from { transform: scaleY(0) } to { transform: scaleY(1) } }
-@keyframes splash-draw { to { stroke-dashoffset: 0 } }
-@keyframes splash-fade { to { opacity: 1 } }
-@keyframes splash-dot { from { opacity: 0; transform: scale(0) } to { opacity: 1; transform: scale(1) } }
-@keyframes splash-ping { 0% { filter: drop-shadow(0 0 0 #8bd5aa) } 100% { filter: drop-shadow(0 0 12px #8bd5aa00) } }
+@keyframes splash-pop { from { opacity: 0; transform: translateY(24px) scale(.92) } }
+@keyframes splash-fly { 0% { transform: translateX(0) rotate(-8deg) } 50% { transform: translateX(55vw) translateY(-18px) rotate(8deg) } 100% { transform: translateX(110vw) rotate(-8deg) } }
+@keyframes splash-drop { 0% { opacity: 0; transform: translateY(0) rotate(0) } 10% { opacity: 1 } 70% { opacity: 1; transform: translateY(5.2rem) rotate(200deg) } 80%, 100% { opacity: 0; transform: translateY(5.6rem) rotate(240deg) scale(.6) } }
+@keyframes splash-squish { 0%, 100% { transform: scale(1, 1) } 30% { transform: scale(1.08, .9) } 60% { transform: scale(.97, 1.04) } }
 @keyframes splash-rise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
-@keyframes splash-shine { to { background-position: -200% 0 } }
 @keyframes splash-progress { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+:root[data-theme="dark"] .welcome-splash { background: radial-gradient(80% 60% at 0% 0%, #1d4936 0%, transparent 60%), radial-gradient(70% 70% at 100% 100%, #14402d 0%, transparent 60%), #0b1511; }
 @media (prefers-reduced-motion: reduce) {
   .welcome-splash *, .welcome-splash { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; }
-  .welcome-splash-coin { display: none; }
+  .welcome-splash-bill, .welcome-splash-drop { display: none; }
 }
 
 /* ===== Tela de login ===== */

@@ -10,6 +10,7 @@ import { CreditCardVisual } from '../components/CreditCardVisual'
 import { InstallmentRow } from '../components/InstallmentRow'
 import { MoneyInput } from '../components/MoneyInput'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { requestWelcomeSplash, WelcomeSplash } from '../components/WelcomeSplash'
 import { installmentInMonth } from '../domain/installments'
 import { formatMoney } from '../domain/format'
 import { CardForm } from '../forms/CardForm'
@@ -25,11 +26,13 @@ export function ComponentsPreview() {
   const [confirm, setConfirm] = useState(false)
   const [details, setDetails] = useState(false)
   const [money, setMoney] = useState('')
+  const [splash, setSplash] = useState(0)
   const [form, setForm] = useState<'card' | 'purchase' | 'income' | 'receivable' | null>(null)
   const sofa = { totalCents: 67644, installmentCount: 12, firstDueMonth: '2026-01' }
   const tv = { totalCents: 150000, installmentCount: 1, firstDueMonth: '2026-07' }
   return <main className="workspace">
     <header><div><p className="eyebrow">DESENVOLVIMENTO</p><h1>Componentes</h1></div><ThemeToggle /></header>
+    <section className="mt-6"><h2 className="mb-3">Animação de boas-vindas</h2><Button variant="outline" onClick={() => { requestWelcomeSplash(); setSplash(splash + 1) }}>Ver animação</Button>{splash > 0 && <WelcomeSplash key={splash} />}</section>
     <section className="mt-6"><h2 className="mb-3">Seletor de mês</h2><MonthPicker value={month} onChange={setMonth} /></section>
     <section className="mt-8"><h2 className="mb-3">Selos</h2><div className="flex gap-2"><StatusBadge done /><StatusBadge done={false} /><StatusBadge kind="receivable" done /><StatusBadge kind="receivable" done={false} /></div></section>
     <section className="mt-8"><h2 className="mb-3">Cartões</h2><div className="card-grid">
