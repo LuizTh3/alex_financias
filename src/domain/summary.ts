@@ -85,3 +85,23 @@ export function monthSummary(month: string, data: FinanceData): MonthSummary {
 
 export const forecast = (startMonth: string, data: FinanceData, months = 12): MonthSummary[] =>
   Array.from({ length: months }, (_, offset) => monthSummary(shiftCompetence(startMonth, offset), data))
+
+export type ImpactMonth = { month: string; incomeCents: number; cards: { cardId: string; cents: number }[]; totalCents: number; balanceCents: number }
+
+/**
+ * Como as faturas dos cartões ativos consomem a renda mês a mês, a partir de `startMonth`,
+ * até o último mês com alguma cobrança (no máximo `limit` meses). Cartões em ordem alfabética.
+ */
+export function incomeImpact(startMonth: string, data: Pick<FinanceData, 'cards' | 'purchases' | 'incomes'>, limit = 12): ImpactMonth[] {
+  const cards = activeCards(data.cards)
+  const months = Array.from({ length: limit }, (_, offset) => {
+    const month = shiftCompetence(startMonth, offset)
+    const items = cards.map(card => ({ cardId: card.id, cents: invoiceTotal(card.id, month, data.purchases) }))
+    const totalCents = sum(items.map(item => item.cents))
+    const incomeCents = incomeInMonth(month, data.incomes)
+    return { month, incomeCents, cards: items, totalCents, balanceCents: incomeCents - totalCents }
+  })
+  let last = -1
+  months.forEach((item, index) => { if (item.totalCents > 0) last = index })
+  return months.slice(0, last + 1)
+}
