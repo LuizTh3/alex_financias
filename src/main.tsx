@@ -1,5 +1,6 @@
 import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
+import { MotionConfig } from 'motion/react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { AuthProvider } from './contexts/AuthContext'
 import { configurationError } from './lib/firebase'
@@ -48,4 +49,5 @@ function App() {
     </BrowserRouter>
   </AuthProvider>
 }
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)
+// Animações do Animate UI (motion) respeitam a preferência de reduzir movimento do sistema.
+createRoot(document.getElementById('root')!).render(<StrictMode><MotionConfig reducedMotion="user"><App /></MotionConfig></StrictMode>)

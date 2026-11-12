@@ -60,6 +60,7 @@ Referências: [Vite na Vercel](https://vercel.com/docs/frameworks/frontend/vite)
 - `src/pages`: as seis telas (Visão geral, Faturas, Cartões, Previsão dos meses, Rendas, A receber) e o login.
 - `src/forms`: formulários de cartão, lançamento, renda e a receber.
 - `src/components/ui`: componentes do [shadcn/ui](https://ui.shadcn.com/) (botões, campos, diálogos, cards, tabela). Adicione novos com `npx shadcn@latest add <nome>`; a configuração fica em `components.json`.
+- Animações suaves de janelas, confirmações, calendário de meses, filtros e caixas de seleção vêm do [Animate UI](https://animate-ui.com/) (`npx @animate-ui/cli@latest animate <componente>`), com respeito à preferência de reduzir movimento. A licença do Animate UI (MIT + Commons Clause) permite o uso no app, mas não a revenda dos componentes.
 - `src/components`: peças do app montadas sobre o shadcn/ui: cartão visual, seletor de mês, selos, diálogos de confirmação e de detalhes.
 - `src/domain`: validações e cálculos puros (parcelas, faturas, saldo, previsão). Dinheiro em centavos inteiros; meses `YYYY-MM`; datas `YYYY-MM-DD`.
 - `src/data`: leitura e gravação no Firestore, sempre validadas com Zod.

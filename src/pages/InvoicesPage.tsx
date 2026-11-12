@@ -8,12 +8,13 @@ import { Link } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { useFinanceData } from '../hooks/useCollection'
 import { useMonthParam, useSearchParam } from '../hooks/useUrlState'
-import { activeCards, invoiceDates, invoiceRows, invoiceTotal, isInvoicePaid, type InvoiceRow, type PurchaseFilter } from '../domain/summary'
+import { activeCards, incomeImpact, invoiceDates, invoiceRows, invoiceTotal, isInvoicePaid, type InvoiceRow, type PurchaseFilter } from '../domain/summary'
 import { formatDate, formatMoney, formatMonth } from '../domain/format'
 import { lastMonthOf } from '../domain/installments'
 import type { Purchase } from '../domain/schemas'
 import { deletePurchase } from '../data/store'
 import { CreditCardVisual } from '../components/CreditCardVisual'
+import { IncomeImpactChart } from '../components/IncomeImpactChart'
 import { MonthPicker } from '../components/MonthPicker'
 import { InstallmentRow } from '../components/InstallmentRow'
 import { DetailsModal } from '../components/DetailsModal'
@@ -45,6 +46,17 @@ export function InvoicesPage() {
     </NativeSelect>
   </div>
 
+  const impact = incomeImpact(month, data)
+  const impactSection = <Card className={`impact-card gap-3 p-5 ${card ? '' : 'mt-4'}`}>
+    <div>
+      <h2 className="text-base font-semibold">Como os cartões afetam a renda</h2>
+      <p className="muted text-sm">Faturas de cada cartão por mês, a partir de {formatMonth(month)}, comparadas à renda (linha tracejada).</p>
+    </div>
+    {impact.length === 0
+      ? <p className="muted text-sm">Nenhuma fatura nos próximos 12 meses.</p>
+      : <IncomeImpactChart months={impact} cards={cards} selectedId={card?.id} onSelect={id => { setFilter('all'); setCardId(id === card?.id ? null : id) }} />}
+  </Card>
+
   if (loading || error) return <main className="workspace"><header><div><p className="eyebrow">POR CARTÃO</p><h1>Faturas</h1></div></header><LoadState loading={loading} error={error} onRetry={retry} /></main>
 
   const rows = card ? invoiceRows(card.id, month, data.purchases, filter) : []
@@ -56,15 +68,14 @@ export function InvoicesPage() {
   return <main className="workspace">
     <header>
       <div><p className="eyebrow">POR CARTÃO</p><h1>Faturas</h1></div>
-      {card && <MonthPicker value={month} onChange={setMonth} />}
+      {cards.length > 0 && <MonthPicker value={month} onChange={setMonth} />}
     </header>
     {cards.length === 0
       ? <Card className="p-0"><EmptyState icon="▭" title="Nenhum cartão cadastrado" action={<Button asChild><Link to="/cartoes">Cadastrar cartão</Link></Button>}>As faturas aparecem depois que você cadastrar um cartão.</EmptyState></Card>
       : !card
-        ? <>{selector}<Card className="p-0 mt-4"><EmptyState icon="▭" title="Selecione o cartão">Escolha um cartão acima para visualizar a fatura.</EmptyState></Card></>
-        : <div className="invoice-layout">
+        ? <>{selector}{impactSection}<Card className="p-0 mt-4"><EmptyState icon="▭" title="Selecione o cartão">Escolha um cartão acima ou no gráfico para visualizar a fatura.</EmptyState></Card></>
+        : <>{selector}<div className="invoice-layout mt-6">
           <aside className="invoice-side">
-            {selector}
             <CreditCardVisual size="large" card={card} invoice={{ totalCents, paid, chargeCount: allRows.length, ...invoiceDates(card, month) }} />
             <div className="invoice-buttons">
               <Button onClick={() => setEditing('new')}>+ Novo lançamento</Button>
@@ -73,6 +84,7 @@ export function InvoicesPage() {
                 {paid ? 'Desmarcar pago' : 'Marcar fatura como paga'}
               </Button>
             </div>
+            {impactSection}
           </aside>
           <section className="invoice-history" aria-labelledby="history-title">
             <div className="history-heading">
@@ -92,7 +104,7 @@ export function InvoicesPage() {
                   <Button variant="outline" onClick={() => setRemoving(row.purchase)}>Excluir</Button>
                 </>} />)}</ul>}
           </section>
-        </div>}
+        </div></>}
 
     {editing && card && <PurchaseForm card={card} purchase={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />}
     {paying && <InvoicePayDialog target={paying} onClose={() => setPaying(null)} />}
