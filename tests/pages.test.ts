@@ -58,6 +58,8 @@ describe('Visão geral', () => {
     expect(html).toContain('R$ 70,00') // parcela 2/5 do MAICO em julho
     expect(html).toContain('não entra no saldo previsto')
     expect(html).toContain('Como cartões e despesas afetam a renda')
+    expect(html).toContain('Progresso dos recebimentos')
+    expect(html).toContain('aria-valuenow="0"') // parcela 2/5 de julho ainda não recebida
   })
   it('respeita o mês da URL', () => {
     expect(render(OverviewPage, '/?mes=2027-02')).toContain('Fevereiro de 2027')
@@ -173,5 +175,13 @@ describe('Mês concluído', () => {
   it('meses concluídos fazem a tela abrir no mês seguinte', () => {
     (state.data as Record<string, unknown>).closedMonths = [{ id: '2026-07', month: '2026-07' }]
     expect(render(OverviewPage)).toContain('Agosto de 2026')
+  })
+})
+
+describe('A receber na Visão geral', () => {
+  it('mostra o progresso dos recebimentos do mês', () => {
+    const html = render(OverviewPage, '/?mes=2026-06') // parcela 1/5 já recebida
+    expect(html).toContain('aria-valuenow="100"')
+    expect(html).toContain('100%')
   })
 })

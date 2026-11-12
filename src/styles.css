@@ -888,6 +888,90 @@
     text-transform: uppercase;
   }
 
+  /* A receber na Visão geral: totais e barra de progresso dos recebimentos */
+  .receivable-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin: 1.25rem 1.25rem 0;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--divider);
+  }
+
+  .receivable-metrics dt {
+    font-size: .8rem;
+    color: var(--muted-foreground);
+  }
+
+  .receivable-metrics dd {
+    margin-top: .35rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .receivable-metrics .is-received { color: var(--success); }
+  .receivable-metrics .is-pending { color: var(--open); }
+
+  .receivable-progress-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.25rem;
+    padding: 1.1rem 1.25rem;
+  }
+
+  .receivable-progress-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .receivable-progress-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .5rem;
+    font-size: .85rem;
+    color: var(--muted-foreground);
+  }
+
+  .receivable-progress-label strong {
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .receivable-bar {
+    height: .5rem;
+    border-radius: 999px;
+    background: var(--muted);
+    overflow: hidden;
+  }
+
+  .receivable-bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--success);
+    transition: width .5s ease;
+  }
+
+  .receivable-footnote {
+    padding: .75rem 1.25rem;
+    border-top: 1px solid var(--divider);
+    font-size: .8rem;
+    color: var(--muted-foreground);
+  }
+
+  @media (max-width: 640px) {
+    .receivable-metrics { grid-template-columns: 1fr 1fr; }
+    .receivable-metrics > div:first-child { grid-column: 1 / -1; }
+    .receivable-progress-row { flex-direction: column; align-items: stretch; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .receivable-bar span { transition: none; }
+  }
+
   /* Mês concluído na Visão geral */
   .month-closed {
     display: flex;

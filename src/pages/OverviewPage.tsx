@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { ArrowUpRightIcon } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Link, useNavigate } from 'react-router'
@@ -19,6 +21,7 @@ import { InvoicePayDialog, type PayTarget } from '../components/InvoicePayDialog
 import { EmptyState, LoadState } from '../components/EmptyState'
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+const percent = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 0 }).format(value)
 const IMPACT_LABELS: ImpactLabels = {
   legend: 'Cartões e despesas',
   total: 'faturas e despesas',
@@ -40,6 +43,7 @@ export function OverviewPage() {
   const summary = monthSummary(month, data)
   const invoices = cardInvoices(month, data)
   const receivable = receivableTotals(month, data.receivables)
+  const receivedShare = receivable.totalCents > 0 ? receivable.receivedCents / receivable.totalCents : 0
   const closed = closedMonths.rows.some(row => row.month === month)
   const expenseCount = expenseRows(month, data.expenses).length
   const [selectedSeries, setSelectedSeries] = useState<string | undefined>()
@@ -117,15 +121,27 @@ export function OverviewPage() {
       </section>
 
       <section className="mt-8" aria-labelledby="receivable-title">
-        <div className="section-heading"><h2 id="receivable-title">A receber</h2></div>
-        <Card className="receivable-card">
-          <div>
-            <p className="muted text-sm">Valores de terceiros em {formatMonth(month)}</p>
-            <strong className="receivable-total">{formatMoney(receivable.totalCents)}</strong>
-            <p className="text-sm">Recebido {formatMoney(receivable.receivedCents)} · Falta {formatMoney(receivable.pendingCents)}</p>
-            <p className="field-hint">Só para consulta: não entra no saldo previsto.</p>
+        <div className="section-heading">
+          <h2 id="receivable-title">A receber</h2>
+          <Badge className="bg-success-bg text-success">{capitalize(formatMonth(month))}</Badge>
+        </div>
+        <Card className="receivable-progress gap-0 p-0">
+          <dl className="receivable-metrics">
+            <div><dt>Total a receber</dt><dd>{formatMoney(receivable.totalCents)}</dd></div>
+            <div><dt>Já recebido</dt><dd className="is-received">{formatMoney(receivable.receivedCents)}</dd></div>
+            <div><dt>Pendente</dt><dd className="is-pending">{formatMoney(receivable.pendingCents)}</dd></div>
+          </dl>
+          <div className="receivable-progress-row">
+            <div className="receivable-progress-info">
+              <div className="receivable-progress-label"><span id="receivable-progress-label">Progresso dos recebimentos</span><strong>{percent(receivedShare)}</strong></div>
+              <div className="receivable-bar" role="progressbar" aria-labelledby="receivable-progress-label"
+                aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(receivedShare * 100)} aria-valuetext={`${percent(receivedShare)} recebido`}>
+                <span style={{ width: `${receivedShare * 100}%` }} />
+              </div>
+            </div>
+            <Button variant="outline" size="lg" asChild><Link to={`/a-receber${month === defaultMonth ? '' : `?mes=${month}`}`}>Acessar <ArrowUpRightIcon aria-hidden="true" /></Link></Button>
           </div>
-          <Link className="secondary" to={`/a-receber${month === defaultMonth ? '' : `?mes=${month}`}`}>Acessar</Link>
+          <p className="receivable-footnote">Valores de terceiros · Só para consulta: não entra no saldo previsto.</p>
         </Card>
       </section>
 
