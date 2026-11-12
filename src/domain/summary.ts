@@ -105,3 +105,21 @@ export function incomeImpact(startMonth: string, data: Pick<FinanceData, 'cards'
   months.forEach((item, index) => { if (item.totalCents > 0) last = index })
   return months.slice(0, last + 1)
 }
+
+export type MonthBreakdown = {
+  summary: MonthSummary
+  incomes: Income[]
+  invoices: (CardInvoice & { rows: InvoiceRow[] })[]
+  receivables: ReceivableRow[]
+}
+
+/** Tudo o que compõe um mês: rendas vigentes, faturas dos cartões ativos com as cobranças, e o A receber. */
+export function monthBreakdown(month: string, data: FinanceData): MonthBreakdown {
+  return {
+    summary: monthSummary(month, data),
+    incomes: data.incomes.filter(income => incomeActiveIn(income, month))
+      .sort((a, b) => b.amountCents - a.amountCents || a.title.localeCompare(b.title, 'pt-BR')),
+    invoices: cardInvoices(month, data).map(invoice => ({ ...invoice, rows: invoiceRows(invoice.card.id, month, data.purchases) })),
+    receivables: receivableRows(month, data.receivables),
+  }
+}
