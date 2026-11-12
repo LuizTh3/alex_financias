@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultMonth, expenseAmountIn, expenseCategories, expenseRows } from '../src/domain/summary'
+import { defaultMonth, expenseAmountIn, expenseCategories, expenseImpact, expenseRows, totalImpact } from '../src/domain/summary'
 import { expenseSchema, type Expense } from '../src/domain/schemas'
 import { installmentInMonth, installmentLabel, installmentsOf, lastMonthOf, monthDiff } from '../src/domain/installments'
 import { cardSchema, incomeSchema, invoiceStatusId, purchaseSchema, receivableSchema, type Card, type Income, type Purchase, type Receivable } from '../src/domain/schemas'
@@ -201,5 +201,25 @@ describe('mês concluído', () => {
     expect(defaultMonth('2026-11', ['2026-11'])).toBe('2026-12')
     expect(defaultMonth('2026-11', ['2026-11', '2026-12'])).toBe('2027-01')
     expect(defaultMonth('2026-12', ['2026-11'])).toBe('2026-12')
+  })
+})
+
+describe('impacto das despesas na renda', () => {
+  it('empilha por categoria e corta os meses finais sem despesa', () => {
+    const luz: Expense = { id: 'luz', title: 'Luz', category: 'Moradia', amountCents: 20000, startMonth: '2026-01', endMonth: '2026-02', overrides: {} }
+    const escola: Expense = { id: 'escola', title: 'Escola', category: 'Educação', amountCents: 50000, startMonth: '2026-01', endMonth: '2026-03', overrides: { '2026-02': 40000 } }
+    const months = expenseImpact('2026-01', { expenses: [luz, escola], incomes: [income('salário', 500000, '2026-01', null)] })
+    expect(months.map(item => item.month)).toEqual(['2026-01', '2026-02', '2026-03'])
+    expect(months[1]).toMatchObject({ incomeCents: 500000, totalCents: 60000, balanceCents: 440000, parts: [{ id: 'Educação', cents: 40000 }, { id: 'Moradia', cents: 20000 }] })
+    expect(months[2].parts).toEqual([{ id: 'Educação', cents: 50000 }, { id: 'Moradia', cents: 0 }])
+  })
+})
+
+describe('impacto de cartões e despesas na renda', () => {
+  it('soma faturas dos cartões ativos e despesas por categoria', () => {
+    const aluguel: Expense = { id: 'aluguel', title: 'Aluguel', category: 'Moradia', amountCents: 120000, startMonth: '2026-03', endMonth: '2026-03', overrides: {} }
+    const months = totalImpact('2026-03', { cards: [nubank, old], purchases: [sofa, purchase('velho', 'old', 99900, 1, '2026-03')], expenses: [aluguel], incomes: [income('salário', 500000, '2026-01', null)] })
+    expect(months[0]).toMatchObject({ totalCents: 125637, balanceCents: 374363, parts: [{ id: 'nu', cents: 5637 }, { id: 'categoria:Moradia', cents: 120000 }] })
+    expect(months.at(-1)?.month).toBe('2026-12') // última parcela do sofá
   })
 })

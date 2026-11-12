@@ -7,7 +7,10 @@ import { Switch } from '@/components/ui/switch'
 import { useAuth } from '../contexts/AuthContext'
 import { useCollection, useFinanceData } from '../hooks/useCollection'
 import { useMonthParam } from '../hooks/useUrlState'
-import { cardInvoices, expenseRows, monthSummary, receivableTotals } from '../domain/summary'
+import {
+  activeCards, CATEGORY_SERIES, cardInvoices, expenseCategories, expenseRows, monthSummary, receivableTotals, totalImpact,
+} from '../domain/summary'
+import { categoryColor, ImpactChart, type ImpactLabels, type ImpactSeries } from '../components/ImpactChart'
 import { formatMoney, formatMonth } from '../domain/format'
 import { setMonthClosed } from '../data/store'
 import { CreditCardVisual } from '../components/CreditCardVisual'
@@ -16,6 +19,13 @@ import { InvoicePayDialog, type PayTarget } from '../components/InvoicePayDialog
 import { EmptyState, LoadState } from '../components/EmptyState'
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+const IMPACT_LABELS: ImpactLabels = {
+  legend: 'Cartões e despesas',
+  total: 'faturas e despesas',
+  detailTitle: name => `Quanto ${name} usa da renda`,
+  detailColumn: 'Valor',
+  hint: 'Selecione um cartão ou uma categoria na legenda para destacar e ver os valores mês a mês.',
+}
 
 export function OverviewPage() {
   const { user } = useAuth()
@@ -32,6 +42,13 @@ export function OverviewPage() {
   const receivable = receivableTotals(month, data.receivables)
   const closed = closedMonths.rows.some(row => row.month === month)
   const expenseCount = expenseRows(month, data.expenses).length
+  const [selectedSeries, setSelectedSeries] = useState<string | undefined>()
+  const impact = totalImpact(month, data)
+  const categories = expenseCategories(data.expenses)
+  const series: ImpactSeries[] = [
+    ...activeCards(data.cards).map(card => ({ id: card.id, name: card.name, color: card.color })),
+    ...categories.map(category => ({ id: CATEGORY_SERIES + category, name: category, color: categoryColor(categories, category) })),
+  ]
 
   /** Marcar mantém este mês na tela; nas próximas aberturas a Visão geral já começa no mês seguinte. */
   async function toggleClosed(next: boolean) {
@@ -111,6 +128,17 @@ export function OverviewPage() {
           <Link className="secondary" to={`/a-receber${month === defaultMonth ? '' : `?mes=${month}`}`}>Acessar</Link>
         </Card>
       </section>
+
+      {impact.length > 0 && <section className="mt-8" aria-labelledby="impact-title">
+        <Card className="impact-card gap-3 p-5">
+          <div>
+            <h2 id="impact-title" className="text-base font-semibold">Como cartões e despesas afetam a renda</h2>
+            <p className="muted text-sm">Faturas de cada cartão e despesas mensais por categoria, a partir de {formatMonth(month)}, comparadas à renda (linha tracejada).</p>
+          </div>
+          <ImpactChart months={impact} series={series} labels={IMPACT_LABELS} selectedId={selectedSeries}
+            onSelect={id => setSelectedSeries(current => current === id ? undefined : id)} />
+        </Card>
+      </section>}
     </>}
     {paying && <InvoicePayDialog target={paying} onClose={() => setPaying(null)} />}
   </main>

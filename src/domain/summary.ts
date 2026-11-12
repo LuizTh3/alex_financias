@@ -149,6 +149,54 @@ export function incomeImpact(startMonth: string, data: Pick<FinanceData, 'cards'
   return months.slice(0, last + 1)
 }
 
+/** Mês do gráfico de impacto na renda, com uma parte por série (cartão ou categoria). */
+export type ImpactSeriesMonth = { month: string; incomeCents: number; parts: { id: string; cents: number }[]; totalCents: number; balanceCents: number }
+
+/**
+ * Como as despesas mensais consomem a renda mês a mês, a partir de `startMonth`, empilhadas por
+ * categoria (ordem alfabética), até o último mês com alguma despesa (no máximo `limit` meses).
+ */
+export function expenseImpact(startMonth: string, data: Pick<FinanceData, 'expenses' | 'incomes'>, limit = 12): ImpactSeriesMonth[] {
+  const categories = expenseCategories(data.expenses)
+  const months = Array.from({ length: limit }, (_, offset) => {
+    const month = shiftCompetence(startMonth, offset)
+    const rows = expenseRows(month, data.expenses)
+    const parts = categories.map(category => ({ id: category, cents: sum(rows.filter(row => row.expense.category === category).map(row => row.amountCents)) }))
+    const totalCents = sum(parts.map(part => part.cents))
+    const incomeCents = incomeInMonth(month, data.incomes)
+    return { month, incomeCents, parts, totalCents, balanceCents: incomeCents - totalCents }
+  })
+  let last = -1
+  months.forEach((item, index) => { if (item.totalCents > 0) last = index })
+  return months.slice(0, last + 1)
+}
+
+/** Prefixo dos ids de categoria no gráfico combinado, para não colidir com ids de cartão. */
+export const CATEGORY_SERIES = 'categoria:'
+
+/**
+ * Faturas dos cartões ativos e despesas mensais (por categoria) consumindo a renda mês a mês.
+ * Partes: cartões em ordem alfabética, depois categorias (`categoria:<nome>`).
+ */
+export function totalImpact(startMonth: string, data: Pick<FinanceData, 'cards' | 'purchases' | 'expenses' | 'incomes'>, limit = 12): ImpactSeriesMonth[] {
+  const cards = activeCards(data.cards)
+  const categories = expenseCategories(data.expenses)
+  const months = Array.from({ length: limit }, (_, offset) => {
+    const month = shiftCompetence(startMonth, offset)
+    const rows = expenseRows(month, data.expenses)
+    const parts = [
+      ...cards.map(card => ({ id: card.id, cents: invoiceTotal(card.id, month, data.purchases) })),
+      ...categories.map(category => ({ id: CATEGORY_SERIES + category, cents: sum(rows.filter(row => row.expense.category === category).map(row => row.amountCents)) })),
+    ]
+    const totalCents = sum(parts.map(part => part.cents))
+    const incomeCents = incomeInMonth(month, data.incomes)
+    return { month, incomeCents, parts, totalCents, balanceCents: incomeCents - totalCents }
+  })
+  let last = -1
+  months.forEach((item, index) => { if (item.totalCents > 0) last = index })
+  return months.slice(0, last + 1)
+}
+
 export type MonthBreakdown = {
   summary: MonthSummary
   incomes: Income[]

@@ -57,6 +57,7 @@ describe('Visão geral', () => {
     expect(html).toContain('Desmarcar')
     expect(html).toContain('R$ 70,00') // parcela 2/5 do MAICO em julho
     expect(html).toContain('não entra no saldo previsto')
+    expect(html).toContain('Como cartões e despesas afetam a renda')
   })
   it('respeita o mês da URL', () => {
     expect(render(OverviewPage, '/?mes=2027-02')).toContain('Fevereiro de 2027')
@@ -152,6 +153,7 @@ describe('Despesas mensais', () => {
     expect(html).toContain('Moradia')
     expect(html).toContain('R$ 1.200,00')
     expect(html).toContain('Valor deste mês')
+    expect(html).toContain('Como as despesas afetam a renda')
   })
   it('mostra o valor trocado só daquele mês', () => {
     const html = render(ExpensesPage, '/despesas?mes=2026-08')

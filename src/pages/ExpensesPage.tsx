@@ -5,26 +5,36 @@ import { Card } from '@/components/ui/card'
 import { useAuth } from '../contexts/AuthContext'
 import { useCollection } from '../hooks/useCollection'
 import { useMonthParam } from '../hooks/useUrlState'
-import { expenseActiveIn, expenseCategories, expenseRows, type ExpenseRow } from '../domain/summary'
+import { expenseActiveIn, expenseCategories, expenseImpact, expenseRows, type ExpenseRow } from '../domain/summary'
 import { formatMoney, formatMonth, formatShortMonth } from '../domain/format'
 import type { Expense } from '../domain/schemas'
 import { deleteExpense } from '../data/store'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { EmptyState, LoadState } from '../components/EmptyState'
 import { MonthPicker } from '../components/MonthPicker'
+import { categoryColor, ImpactChart, type ImpactLabels } from '../components/ImpactChart'
 import { ExpenseForm } from '../forms/ExpenseForm'
 import { ExpenseMonthForm } from '../forms/ExpenseMonthForm'
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
 const period = (expense: Expense) => `${formatShortMonth(expense.startMonth)} → ${expense.endMonth ? formatShortMonth(expense.endMonth) : 'sem fim'}`
+const LABELS: ImpactLabels = {
+  legend: 'Categorias',
+  total: 'despesas mensais',
+  detailTitle: name => `Quanto ${name} usa da renda`,
+  detailColumn: 'Despesas',
+  hint: 'Selecione uma categoria na legenda para destacar e ver os valores dela mês a mês.',
+}
 
 export function ExpensesPage() {
   const { user } = useAuth()
   const expenses = useCollection('expenses')
+  const incomes = useCollection('incomes')
   const [month, setMonth] = useMonthParam()
   const [editing, setEditing] = useState<Expense | 'new' | null>(null)
   const [changingMonth, setChangingMonth] = useState<Expense | null>(null)
   const [removing, setRemoving] = useState<Expense | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>()
 
   const rows = expenseRows(month, expenses.rows)
   const totalCents = sum(rows.map(row => row.amountCents))
@@ -32,6 +42,8 @@ export function ExpensesPage() {
   const others = expenses.rows.filter(expense => !expenseActiveIn(expense, month))
     .sort((a, b) => b.startMonth.localeCompare(a.startMonth) || a.title.localeCompare(b.title, 'pt-BR'))
   const categories = expenseCategories(expenses.rows)
+  const colorOf = (category: string) => categoryColor(categories, category)
+  const impact = expenseImpact(month, { expenses: expenses.rows, incomes: incomes.rows })
 
   const actions = (expense: Expense, row?: ExpenseRow) => <div className="row-actions">
     {row && <Button variant="outline" onClick={() => setChangingMonth(expense)}>Valor deste mês</Button>}
@@ -57,8 +69,17 @@ export function ExpensesPage() {
         </EmptyState></Card>
         : <>
           {byCategory.length > 0 && <ul className="category-totals" aria-label={`Total por categoria em ${formatMonth(month)}`}>
-            {byCategory.map(([category, cents]) => <li key={category}><span>{category}</span><strong>{formatMoney(cents)}</strong></li>)}
+            {byCategory.map(([category, cents]) => <li key={category}><span className="impact-swatch" style={{ background: colorOf(category) }} /><span>{category}</span><strong>{formatMoney(cents)}</strong></li>)}
           </ul>}
+          {impact.length > 0 && <Card className="impact-card mb-8 gap-3 p-5">
+            <div>
+              <h2 className="text-base font-semibold">Como as despesas afetam a renda</h2>
+              <p className="muted text-sm">Despesas mensais por categoria, a partir de {formatMonth(month)}, comparadas à renda (linha tracejada).</p>
+            </div>
+            <ImpactChart months={impact} labels={LABELS} selectedId={selectedCategory}
+              series={categories.map(category => ({ id: category, name: category, color: colorOf(category) }))}
+              onSelect={category => setSelectedCategory(current => current === category ? undefined : category)} />
+          </Card>}
           <h2 className="mb-3">Despesas de {formatMonth(month)}</h2>
           {rows.length === 0
             ? <Card className="p-0"><EmptyState title="Nenhuma despesa neste mês">Nenhuma despesa mensal vigente em {formatMonth(month)}.</EmptyState></Card>
