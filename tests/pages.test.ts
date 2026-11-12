@@ -114,6 +114,7 @@ describe('Previsão', () => {
     expect(html).not.toContain('Março de 2027')
     expect(html).toContain('informativo')
     expect(html).toContain('Total em 12 meses')
+    expect(html).toContain('aria-haspopup="dialog"')
   })
 })
 

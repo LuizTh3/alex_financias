@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { installmentInMonth, installmentLabel, installmentsOf, lastMonthOf, monthDiff } from '../src/domain/installments'
 import { cardSchema, incomeSchema, invoiceStatusId, purchaseSchema, receivableSchema, type Card, type Income, type Purchase, type Receivable } from '../src/domain/schemas'
 import {
-  cardHasData, cardInvoices, forecast, incomeInMonth, invoiceDates, invoiceRows, invoiceTotal, monthSummary, receivableRows, receivableTotals, type FinanceData,
+  cardHasData, cardInvoices, forecast, monthBreakdown, incomeInMonth, invoiceDates, invoiceRows, invoiceTotal, monthSummary, receivableRows, receivableTotals, type FinanceData,
 } from '../src/domain/summary'
 
 const nubank: Card = { id: 'nu', name: 'Nubank', color: '#8a05be', closingDay: 3, dueDay: 10, active: true }
@@ -143,5 +143,21 @@ describe('validação dos formulários', () => {
     expect(receivableSchema.parse(base).receivedIndexes).toEqual([])
     expect(receivableSchema.safeParse({ ...base, receivedIndexes: [6] }).success).toBe(false)
     expect(receivableSchema.safeParse({ ...base, receivedIndexes: [1, 1] }).success).toBe(false)
+  })
+})
+
+describe('detalhamento do mês', () => {
+  it('lista rendas vigentes, faturas com cobranças e o A receber do mês', () => {
+    const data: FinanceData = {
+      cards: [nubank, inter, old], statuses: [{ id: 'nu_2026-03', cardId: 'nu', month: '2026-03' }],
+      purchases: [sofa, purchase('velho', 'old', 99900, 1, '2026-03')],
+      incomes: [income('salário', 500000, '2026-01', null), income('freela', 100000, '2026-05', null)],
+      receivables: [maico],
+    }
+    const detail = monthBreakdown('2026-03', data)
+    expect(detail.summary).toMatchObject({ incomeCents: 500000, payableCents: 5637, balanceCents: 494363, receivableCents: 7000 })
+    expect(detail.incomes.map(item => item.id)).toEqual(['salário'])
+    expect(detail.invoices.map(item => [item.card.id, item.totalCents, item.paid, item.rows.length])).toEqual([['inter', 0, false, 0], ['nu', 5637, true, 1]])
+    expect(detail.receivables[0]).toMatchObject({ received: true, installment: { index: 1, amountCents: 7000 } })
   })
 })

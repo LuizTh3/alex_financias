@@ -480,3 +480,43 @@
 .impact-table th, .impact-table td { padding: .45rem .35rem; text-align: right; border-bottom: 1px solid var(--divider); white-space: nowrap; }
 .impact-table th:first-child { text-align: left; }
 .impact-table thead th { color: var(--muted-foreground); font-weight: 500; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; }
+
+/* ===== Previsão: detalhamento do mês ===== */
+.forecast-month { cursor: pointer; text-align: left; text-decoration: none; }
+.forecast-month:hover { text-decoration: underline; }
+.forecast-month:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; border-radius: .25rem; }
+.month-details { display: grid; gap: 1.4rem; }
+.month-details-summary { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: 1rem 1.1rem; border-radius: var(--radius-xl); background: var(--muted); }
+.month-details-summary > div { display: grid; gap: .15rem; min-width: 0; }
+.month-details-summary > div span { font-size: .72rem; color: var(--muted-foreground); }
+.month-details-summary > div strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.month-details-summary > span { color: var(--muted-foreground); font-size: 1.1rem; }
+.month-details-summary .is-balance strong { color: var(--success); font-size: 1.25rem; }
+.month-details-summary .is-balance.is-negative strong { color: var(--destructive); }
+.month-details-title { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding-bottom: .5rem; margin-bottom: .4rem; border-bottom: 1px solid var(--divider); font-size: .95rem; }
+.month-details-title > span:last-child { font-variant-numeric: tabular-nums; }
+.month-details-title small { font-weight: 400; font-size: .72rem; color: var(--muted-foreground); }
+.month-details-list > li { display: flex; align-items: center; gap: .75rem; padding: .5rem 0; border-bottom: 1px solid var(--divider); font-size: .875rem; }
+.month-details-list > li:last-child { border-bottom: 0; }
+.month-details-list > li > span:first-child { display: grid; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.month-details-list small { font-size: .72rem; color: var(--muted-foreground); }
+.month-details-list strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.month-details-list.is-nested { margin: .25rem 0 .25rem 1.4rem; }
+.month-details-cards { display: grid; gap: .5rem; }
+.month-details-card { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: .15rem .8rem; }
+.month-details-card[open] { padding-bottom: .5rem; }
+.month-details-card summary { display: flex; align-items: center; gap: .65rem; padding: .55rem 0; cursor: pointer; list-style: none; font-size: .875rem; }
+.month-details-card summary::-webkit-details-marker { display: none; }
+.month-details-card summary:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; border-radius: .25rem; }
+.month-details-card summary > strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.month-details-card-name { display: grid; flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.month-details-card-name small { font-weight: 400; font-size: .72rem; color: var(--muted-foreground); }
+.month-details-swatch { width: .75rem; height: .75rem; border-radius: .2rem; flex-shrink: 0; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 25%, transparent); }
+.month-details-chevron { width: 1rem; height: 1rem; color: var(--muted-foreground); transition: transform .2s; flex-shrink: 0; }
+.month-details-card[open] .month-details-chevron { transform: rotate(180deg); }
+@media (max-width: 640px) {
+  .month-details-summary { display: grid; grid-template-columns: 1fr 1fr; }
+  .month-details-summary > span { display: none; }
+  .month-details-summary .is-balance { grid-column: 1 / -1; }
+  .month-details-card summary [data-slot="badge"] { display: none; }
+}

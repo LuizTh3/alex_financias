@@ -1,12 +1,13 @@
-import { Link } from 'react-router'
+import { useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useFinanceData } from '../hooks/useCollection'
 import { useMonthParam } from '../hooks/useUrlState'
-import { forecast } from '../domain/summary'
+import { forecast, monthBreakdown } from '../domain/summary'
 import { currentMonth, formatMoney, formatMonth } from '../domain/format'
 import { MonthPicker } from '../components/MonthPicker'
 import { LoadState } from '../components/EmptyState'
+import { MonthDetailsModal } from '../components/MonthDetailsModal'
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
@@ -14,6 +15,7 @@ const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1
 export function ForecastPage() {
   const { data, loading, error, retry } = useFinanceData()
   const [start, setStart] = useMonthParam('inicio')
+  const [detail, setDetail] = useState<string | null>(null)
   const months = forecast(start, data)
   const today = currentMonth()
   const totals = {
@@ -29,13 +31,13 @@ export function ForecastPage() {
     </header>
     <LoadState loading={loading} error={error} onRetry={retry} />
     {!loading && !error && <>
-      <p className="muted mb-4 max-w-3xl">Saldo previsto = renda − faturas dos cartões. A coluna <strong>A receber</strong> é só informativa e não entra no saldo.
+      <p className="muted mb-4 max-w-3xl">Saldo previsto = renda − faturas dos cartões. A coluna <strong>A receber</strong> é só informativa e não entra no saldo. Clique em um mês para ver o detalhamento.
         {negative > 0 && <> <strong className="text-[var(--danger)]">{negative} {negative === 1 ? 'mês fica' : 'meses ficam'} negativo{negative === 1 ? '' : 's'}.</strong></>}</p>
       <Card className="forecast-card p-0">
         <Table className="forecast-table">
           <TableHeader><TableRow><TableHead scope="col">Mês</TableHead><TableHead scope="col">Renda</TableHead><TableHead scope="col">A pagar</TableHead><TableHead scope="col">Saldo previsto</TableHead><TableHead scope="col" className="informative">A receber <span>(informativo)</span></TableHead></TableRow></TableHeader>
           <TableBody>{months.map(item => <TableRow key={item.month} className={item.month === today ? 'is-current' : undefined}>
-            <TableHead scope="row" className="font-medium text-foreground"><Link className="record-link" to={item.month === today ? '/' : `/?mes=${item.month}`} title="Abrir na Visão geral">{capitalize(formatMonth(item.month))}</Link></TableHead>
+            <TableHead scope="row" className="font-medium text-foreground"><button type="button" className="record-link forecast-month" onClick={() => setDetail(item.month)} aria-haspopup="dialog" title="Ver detalhes do mês">{capitalize(formatMonth(item.month))}</button></TableHead>
             <TableCell data-label="Renda">{formatMoney(item.incomeCents)}</TableCell>
             <TableCell data-label="A pagar">{formatMoney(item.payableCents)}</TableCell>
             <TableCell data-label="Saldo previsto" className={item.balanceCents < 0 ? 'is-negative' : 'is-positive'}>{formatMoney(item.balanceCents)}</TableCell>
@@ -46,5 +48,6 @@ export function ForecastPage() {
         </Table>
       </Card>
     </>}
+    {detail && <MonthDetailsModal breakdown={monthBreakdown(detail, data)} onClose={() => setDetail(null)} />}
   </main>
 }
