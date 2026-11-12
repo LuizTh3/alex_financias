@@ -880,7 +880,7 @@
   .invoice-header-actions {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: stretch;
     gap: .75rem;
   }
 

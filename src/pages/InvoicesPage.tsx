@@ -77,7 +77,7 @@ export function InvoicesPage() {
       <div><p className="eyebrow">POR CARTÃO</p><h1>Faturas</h1></div>
       {cards.length > 0 && <div className="invoice-header-actions">
         <MonthPicker value={month} onChange={setMonth} />
-        {card && <Button className="invoice-new-button" onClick={() => setEditing('new')}>+ Novo lançamento</Button>}
+        {card && <Button size="lg" className="invoice-new-button" onClick={() => setEditing('new')}>+ Novo lançamento</Button>}
       </div>}
     </header>
     {cards.length === 0
