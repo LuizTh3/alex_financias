@@ -1,17 +1,21 @@
 import {
-  arrayRemove, arrayUnion, collection, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, type DocumentData,
+  arrayRemove, arrayUnion, collection, deleteDoc, deleteField, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, type DocumentData,
 } from 'firebase/firestore'
 import type { ZodType } from 'zod'
 import { db } from '../lib/firebase'
 import {
-  cardSchema, incomeSchema, invoiceStatusId, purchaseSchema, receivableSchema,
-  type Card, type CardInput, type Income, type IncomeInput, type InvoiceStatus, type Purchase, type PurchaseInput, type Receivable, type ReceivableInput,
+  cardSchema, expenseSchema, incomeSchema, invoiceStatusId, purchaseSchema, receivableSchema,
+  type Card, type CardInput, type ClosedMonth, type Expense, type ExpenseInput, type Income, type IncomeInput, type InvoiceStatus,
+  type Purchase, type PurchaseInput, type Receivable, type ReceivableInput,
 } from '../domain/schemas'
 import { competenceSchema } from '../domain/calendar'
+import { MAX_TOTAL_CENTS } from '../domain/money'
 
 /** Coleções do modelo simplificado, abaixo de `/users/{uid}`. */
-export type CollectionName = 'cards' | 'purchases' | 'invoiceStatus' | 'incomes' | 'receivables'
-export type RecordMap = { cards: Card; purchases: Purchase; invoiceStatus: InvoiceStatus; incomes: Income; receivables: Receivable }
+export type CollectionName = 'cards' | 'purchases' | 'invoiceStatus' | 'incomes' | 'receivables' | 'expenses' | 'closedMonths'
+export type RecordMap = {
+  cards: Card; purchases: Purchase; invoiceStatus: InvoiceStatus; incomes: Income; receivables: Receivable; expenses: Expense; closedMonths: ClosedMonth
+}
 
 function database() {
   if (!db) throw new Error('Firebase não configurado. Confira as variáveis do arquivo .env.')
@@ -31,6 +35,7 @@ const parseCard = parseWith(cardSchema, ['name', 'color', 'closingDay', 'dueDay'
 const parsePurchase = parseWith(purchaseSchema, ['cardId', 'title', 'totalCents', 'installmentCount', 'purchaseDate', 'firstDueMonth', 'description'])
 const parseIncome = parseWith(incomeSchema, ['title', 'amountCents', 'startMonth', 'endMonth'])
 const parseReceivable = parseWith(receivableSchema, ['title', 'totalCents', 'installmentCount', 'launchDate', 'firstDueMonth', 'description', 'receivedIndexes'])
+const parseExpense = parseWith(expenseSchema, ['title', 'category', 'amountCents', 'startMonth', 'endMonth', 'overrides'])
 
 const readers: { [K in CollectionName]: (id: string, data: DocumentData) => RecordMap[K] | null } = {
   cards: (id, data) => { const card = parseCard(data); return card && typeof data.active === 'boolean' ? { ...card, id, active: data.active } : null },
@@ -39,6 +44,8 @@ const readers: { [K in CollectionName]: (id: string, data: DocumentData) => Reco
   receivables: (id, data) => { const value = parseReceivable(data); return value && { ...value, id } },
   invoiceStatus: (id, data) => typeof data.cardId === 'string' && competenceSchema.safeParse(data.month).success
     ? { id, cardId: data.cardId, month: data.month } : null,
+  expenses: (id, data) => { const value = parseExpense(data); return value && { ...value, id } },
+  closedMonths: (id, data) => competenceSchema.safeParse(data.month).success && data.month === id ? { id, month: data.month } : null,
 }
 
 export function subscribeCollection<K extends CollectionName>(uid: string, name: K, onRows: (rows: RecordMap[K][]) => void, onError: (error: Error) => void) {
@@ -83,6 +90,27 @@ export async function setInvoicePaid(uid: string, cardId: string, month: string,
   const ref = docRef(uid, 'invoiceStatus', invoiceStatusId(cardId, month))
   if (paid) await setDoc(ref, { cardId, month, paidAt: serverTimestamp() })
   else await deleteDoc(ref)
+}
+
+// Mês concluído: só um marcador. A tela inicial passa a abrir no primeiro mês seguinte não concluído.
+export async function setMonthClosed(uid: string, month: string, closed: boolean) {
+  const ref = docRef(uid, 'closedMonths', competenceSchema.parse(month))
+  if (closed) await setDoc(ref, { month, closedAt: serverTimestamp() })
+  else await deleteDoc(ref)
+}
+
+// Despesas mensais: editar a despesa mantém os valores trocados de meses específicos.
+export const createExpense = async (uid: string, input: ExpenseInput) => create(uid, 'expenses', expenseSchema.parse(input))
+export async function updateExpense(uid: string, id: string, input: Omit<ExpenseInput, 'overrides'>) {
+  const { overrides: _, ...value } = expenseSchema.parse({ ...input, overrides: {} })
+  return update(uid, 'expenses', id, value)
+}
+export const deleteExpense = async (uid: string, id: string) => remove(uid, 'expenses', id)
+/** Troca o valor só de um mês (`null` volta ao valor padrão), sem mexer nos outros meses. */
+export async function setExpenseMonthAmount(uid: string, id: string, month: string, amountCents: number | null) {
+  competenceSchema.parse(month)
+  if (amountCents !== null && (!Number.isInteger(amountCents) || amountCents < 0 || amountCents > MAX_TOTAL_CENTS)) throw new Error('Valor inválido.')
+  return update(uid, 'expenses', id, { [`overrides.${month}`]: amountCents ?? deleteField() })
 }
 
 // Rendas

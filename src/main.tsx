@@ -13,6 +13,7 @@ import { CardsPage } from './pages/CardsPage'
 import { ForecastPage } from './pages/ForecastPage'
 import { IncomesPage } from './pages/IncomesPage'
 import { ReceivablesPage } from './pages/ReceivablesPage'
+import { ExpensesPage } from './pages/ExpensesPage'
 import './styles.css'
 
 /** Vitrine de componentes: só existe no `npm run dev`, fica fora do build de produção. */
@@ -22,7 +23,7 @@ const ComponentsPreview = import.meta.env.DEV
 
 /** Endereços da v0.2.0 levados à tela equivalente, para favoritos antigos continuarem funcionando. */
 const legacyRoutes: [string, string][] = [
-  ['/lancamentos', '/faturas'], ['/categorias', '/cartoes'], ['/despesas-fixas', '/rendas'],
+  ['/lancamentos', '/faturas'], ['/categorias', '/cartoes'], ['/despesas-fixas', '/despesas'],
   ['/futuros', '/previsao'], ['/conta', '/'], ['/como-usar', '/'],
 ]
 
@@ -40,6 +41,7 @@ function App() {
             <Route path="/cartoes" element={<CardsPage />} />
             <Route path="/previsao" element={<ForecastPage />} />
             <Route path="/rendas" element={<IncomesPage />} />
+            <Route path="/despesas" element={<ExpensesPage />} />
             <Route path="/a-receber" element={<ReceivablesPage />} />
             {legacyRoutes.map(([from, to]) => <Route key={from} path={from} element={<Navigate to={to} replace />} />)}
           </Route>

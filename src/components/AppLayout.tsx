@@ -7,7 +7,7 @@ import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 const pages = [
   ['/', 'Visão geral'], ['/faturas', 'Faturas'], ['/cartoes', 'Cartões'],
-  ['/previsao', 'Previsão dos meses'], ['/rendas', 'Rendas'], ['/a-receber', 'A receber'],
+  ['/previsao', 'Previsão dos meses'], ['/rendas', 'Rendas'], ['/despesas', 'Despesas mensais'], ['/a-receber', 'A receber'],
 ]
 export function AppLayout() {
   const { user, logout } = useAuth()
