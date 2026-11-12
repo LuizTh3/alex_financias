@@ -4,10 +4,13 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import { Link } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { useFinanceData } from '../hooks/useCollection'
 import { useMonthParam, useSearchParam } from '../hooks/useUrlState'
+import { useInvoiceCheck } from '../hooks/useInvoiceCheck'
 import { activeCards, incomeImpact, invoiceDates, invoiceRows, invoiceTotal, isInvoicePaid, type InvoiceRow, type PurchaseFilter } from '../domain/summary'
 import { formatDate, formatMoney, formatMonth } from '../domain/format'
 import { lastMonthOf } from '../domain/installments'
@@ -37,6 +40,7 @@ export function InvoicesPage() {
   const [paying, setPaying] = useState<PayTarget | null>(null)
   const cards = activeCards(data.cards)
   const card = cards.find(item => item.id === cardId)
+  const check = useInvoiceCheck(card?.id, month)
 
   const selector = <div className="field invoice-card-select">
     <Label htmlFor="invoice-card" className="mb-2">Cartão</Label>
@@ -63,12 +67,18 @@ export function InvoicesPage() {
   const allRows = card ? invoiceRows(card.id, month, data.purchases) : []
   const totalCents = card ? invoiceTotal(card.id, month, data.purchases) : 0
   const paid = card ? isInvoicePaid(card.id, month, data.statuses) : false
+  const visibleIds = rows.map(row => row.purchase.id)
+  const checkedCount = visibleIds.filter(check.isChecked).length
+  const allChecked = visibleIds.length > 0 && checkedCount === visibleIds.length
   const counts = { all: allRows.length, single: allRows.filter(row => row.installment.count === 1).length, installment: allRows.filter(row => row.installment.count > 1).length }
 
   return <main className="workspace">
     <header>
       <div><p className="eyebrow">POR CARTÃO</p><h1>Faturas</h1></div>
-      {cards.length > 0 && <MonthPicker value={month} onChange={setMonth} />}
+      {cards.length > 0 && <div className="invoice-header-actions">
+        <MonthPicker value={month} onChange={setMonth} />
+        {card && <Button className="invoice-new-button" onClick={() => setEditing('new')}>+ Novo lançamento</Button>}
+      </div>}
     </header>
     {cards.length === 0
       ? <Card className="p-0"><EmptyState icon="▭" title="Nenhum cartão cadastrado" action={<Button asChild><Link to="/cartoes">Cadastrar cartão</Link></Button>}>As faturas aparecem depois que você cadastrar um cartão.</EmptyState></Card>
@@ -78,7 +88,6 @@ export function InvoicesPage() {
           <aside className="invoice-side">
             <CreditCardVisual size="large" card={card} invoice={{ totalCents, paid, chargeCount: allRows.length, ...invoiceDates(card, month) }} />
             <div className="invoice-buttons">
-              <Button onClick={() => setEditing('new')}>+ Novo lançamento</Button>
               <Button variant="outline" disabled={!paid && totalCents === 0}
                 onClick={() => setPaying({ cardId: card.id, cardName: card.name, month, totalCents, paid })}>
                 {paid ? 'Desmarcar pago' : 'Marcar fatura como paga'}
@@ -89,9 +98,15 @@ export function InvoicesPage() {
           <section className="invoice-history" aria-labelledby="history-title">
             <div className="history-heading">
               <h2 id="history-title">Lançamentos de {formatMonth(month)}</h2>
-              <ToggleGroup type="single" variant="outline" aria-label="Filtrar lançamentos" value={filter} onValueChange={value => { if (value) setFilter(value as PurchaseFilter) }}>
-                {FILTERS.map(([value, label]) => <ToggleGroupItem key={value} value={value} aria-label={`${label}: ${counts[value]}`}>{label}<span className="text-xs text-muted-foreground">{counts[value]}</span></ToggleGroupItem>)}
-              </ToggleGroup>
+              <div className="history-tools">
+                {rows.length > 0 && <Checkbox className="size-5" title={allChecked ? 'Desmarcar todos' : 'Marcar todos'}
+                  aria-label={allChecked ? 'Desmarcar todos da conferência' : 'Marcar todos na conferência'}
+                  checked={allChecked ? true : checkedCount > 0 ? 'indeterminate' : false}
+                  onCheckedChange={() => check.setAll(visibleIds, !allChecked)} />}
+                <ToggleGroup type="single" variant="outline" aria-label="Filtrar lançamentos" value={filter} onValueChange={value => { if (value) setFilter(value as PurchaseFilter) }}>
+                  {FILTERS.map(([value, label]) => <ToggleGroupItem key={value} value={value} aria-label={`${label}: ${counts[value]}`}>{label}<span className="text-xs text-muted-foreground">{counts[value]}</span></ToggleGroupItem>)}
+                </ToggleGroup>
+              </div>
             </div>
             {rows.length === 0
               ? <Card className="p-0"><EmptyState title={allRows.length ? 'Nenhum lançamento neste filtro' : 'Nenhum lançamento nesta fatura'}
@@ -99,7 +114,10 @@ export function InvoicesPage() {
                 {allRows.length ? 'Escolha outro filtro para ver os demais.' : `Não há parcelas do ${card.name} vencendo em ${formatMonth(month)}.`}
               </EmptyState></Card>
               : <ul className="installment-list">{rows.map(row => <InstallmentRow key={row.purchase.id} title={row.purchase.title} installment={row.installment}
-                onOpen={() => setDetails(row)} actions={<>
+                onOpen={() => setDetails(row)}
+                status={<Switch checked={check.isChecked(row.purchase.id)} onCheckedChange={on => check.toggle(row.purchase.id, on)}
+                  aria-label={`Conferido: ${row.purchase.title}`} title="Conferido" />}
+                actions={<>
                   <Button variant="outline" onClick={() => setEditing(row.purchase)}>Editar</Button>
                   <Button variant="outline" onClick={() => setRemoving(row.purchase)}>Excluir</Button>
                 </>} />)}</ul>}
