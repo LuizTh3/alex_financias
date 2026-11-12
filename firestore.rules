@@ -104,6 +104,29 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
 
+    // Valores por mês ficam num mapa {YYYY-MM: centavos}; o conteúdo é validado no app ao ler e gravar.
+    function validExpense() {
+      return exactKeys(['title', 'category', 'amountCents', 'startMonth', 'endMonth', 'overrides', 'createdAt', 'updatedAt'])
+        && validText(data().title) && validText(data().category) && data().category.size() <= 40
+        && validCents(data().amountCents) && validMonth(data().startMonth)
+        && (data().endMonth == null || (validMonth(data().endMonth) && data().endMonth >= data().startMonth))
+        && data().overrides is map && data().overrides.size() <= 240;
+    }
+    match /users/{userId}/expenses/{expenseId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validId(expenseId) && validExpense() && created();
+      allow update: if isOwner(userId) && validExpense() && updated();
+      allow delete: if isOwner(userId);
+    }
+
+    // Existir = mês marcado como concluído. Desmarcar = apagar.
+    match /users/{userId}/closedMonths/{month} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && exactKeys(['month', 'closedAt'])
+        && validMonth(data().month) && month == data().month && data().closedAt == request.time;
+      allow delete: if isOwner(userId);
+    }
+
     function validReceivable() {
       return exactKeys(['title', 'totalCents', 'installmentCount', 'launchDate', 'firstDueMonth', 'description', 'receivedIndexes', 'createdAt', 'updatedAt'])
         && validText(data().title) && validCents(data().totalCents) && validCount(data().installmentCount)

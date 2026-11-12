@@ -31,7 +31,7 @@ export function ForecastPage() {
     </header>
     <LoadState loading={loading} error={error} onRetry={retry} />
     {!loading && !error && <>
-      <p className="muted mb-4 max-w-3xl">Saldo previsto = renda − faturas dos cartões. A coluna <strong>A receber</strong> é só informativa e não entra no saldo. Clique em um mês para ver o detalhamento.
+      <p className="muted mb-4 max-w-3xl">Saldo previsto = renda − faturas dos cartões − despesas mensais. A coluna <strong>A receber</strong> é só informativa e não entra no saldo. Clique em um mês para ver o detalhamento.
         {negative > 0 && <> <strong className="text-[var(--danger)]">{negative} {negative === 1 ? 'mês fica' : 'meses ficam'} negativo{negative === 1 ? '' : 's'}.</strong></>}</p>
       <Card className="forecast-card p-0">
         <Table className="forecast-table">

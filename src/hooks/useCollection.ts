@@ -30,8 +30,11 @@ export function useFinanceData() {
   const statuses = useCollection('invoiceStatus')
   const incomes = useCollection('incomes')
   const receivables = useCollection('receivables')
-  const sources = [cards, purchases, statuses, incomes, receivables]
-  const data: FinanceData = { cards: cards.rows, purchases: purchases.rows, statuses: statuses.rows, incomes: incomes.rows, receivables: receivables.rows }
+  const expenses = useCollection('expenses')
+  const sources = [cards, purchases, statuses, incomes, receivables, expenses]
+  const data: FinanceData = {
+    cards: cards.rows, purchases: purchases.rows, statuses: statuses.rows, incomes: incomes.rows, receivables: receivables.rows, expenses: expenses.rows,
+  }
   return {
     data,
     loading: sources.some(source => source.loading),

@@ -2,7 +2,8 @@ import { Link } from 'react-router'
 import { ChevronDownIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { MonthBreakdown } from '../domain/summary'
-import { currentMonth, formatDate, formatMoney, formatMonth, formatShortMonth } from '../domain/format'
+import { formatDate, formatMoney, formatMonth, formatShortMonth } from '../domain/format'
+import { useDefaultMonth } from '../hooks/useUrlState'
 import { installmentLabel } from '../domain/installments'
 import { Modal } from './Modal'
 import { StatusBadge } from './StatusBadge'
@@ -11,18 +12,19 @@ const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1
 
 /** Detalhamento de um mês da previsão: rendas, faturas por cartão (com as cobranças), saldo previsto e A receber. */
 export function MonthDetailsModal({ breakdown, onClose }: { breakdown: MonthBreakdown; onClose: () => void }) {
-  const { summary, incomes, invoices, receivables } = breakdown
+  const { summary, incomes, expenses, invoices, receivables } = breakdown
   const month = summary.month
   const withCharges = invoices.filter(invoice => invoice.totalCents > 0)
   const withoutCharges = invoices.length - withCharges.length
-  const monthQuery = month === currentMonth() ? '' : `mes=${month}`
+  const defaultMonth = useDefaultMonth()
+  const monthQuery = month === defaultMonth ? '' : `mes=${month}`
 
   return <Modal title={capitalize(formatMonth(month))} onClose={onClose} wide>
     <div className="month-details">
       <section className="month-details-summary" aria-label="Resumo do mês">
         <div><span>Renda</span><strong>{formatMoney(summary.incomeCents)}</strong></div>
         <span aria-hidden="true">−</span>
-        <div><span>Faturas</span><strong>{formatMoney(summary.payableCents)}</strong></div>
+        <div><span>A pagar</span><strong>{formatMoney(summary.payableCents)}</strong></div>
         <span aria-hidden="true">=</span>
         <div className={`is-balance ${summary.balanceCents < 0 ? 'is-negative' : ''}`}><span>Saldo previsto</span><strong>{formatMoney(summary.balanceCents)}</strong></div>
       </section>
@@ -37,8 +39,18 @@ export function MonthDetailsModal({ breakdown, onClose }: { breakdown: MonthBrea
           </li>)}</ul>}
       </section>
 
+      <section aria-labelledby="month-expenses">
+        <h3 id="month-expenses" className="month-details-title"><span>Despesas mensais</span><span>{formatMoney(summary.expensesCents)}</span></h3>
+        {expenses.length === 0
+          ? <p className="muted text-sm">Nenhuma despesa mensal neste mês. <Link className="record-link" to={monthQuery ? `/despesas?${monthQuery}` : '/despesas'}>Cadastrar despesa</Link></p>
+          : <ul className="month-details-list">{expenses.map(row => <li key={row.expense.id}>
+            <span>{row.expense.title}<small>{row.expense.category}{row.changed ? ' · valor só deste mês' : ''}</small></span>
+            <strong>{formatMoney(row.amountCents)}</strong>
+          </li>)}</ul>}
+      </section>
+
       <section aria-labelledby="month-cards">
-        <h3 id="month-cards" className="month-details-title"><span>Cartões</span><span>{formatMoney(summary.payableCents)}</span></h3>
+        <h3 id="month-cards" className="month-details-title"><span>Cartões</span><span>{formatMoney(summary.invoicesCents)}</span></h3>
         {withCharges.length === 0
           ? <p className="muted text-sm">Nenhuma fatura com cobranças neste mês.</p>
           : <div className="month-details-cards">{withCharges.map(invoice => <details key={invoice.card.id} className="month-details-card">

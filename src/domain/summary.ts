@@ -1,13 +1,17 @@
 import { dueDateInMonth, shiftCompetence } from './calendar'
 import { installmentInMonth, type Installment } from './installments'
-import { invoiceStatusId, type Card, type Income, type InvoiceStatus, type Purchase, type Receivable } from './schemas'
+import { invoiceStatusId, type Card, type Expense, type Income, type InvoiceStatus, type Purchase, type Receivable } from './schemas'
 
 export type PurchaseFilter = 'all' | 'single' | 'installment'
-export type FinanceData = { cards: Card[]; purchases: Purchase[]; statuses: InvoiceStatus[]; incomes: Income[]; receivables: Receivable[] }
+export type FinanceData = { cards: Card[]; purchases: Purchase[]; statuses: InvoiceStatus[]; incomes: Income[]; receivables: Receivable[]; expenses: Expense[] }
+export type ExpenseRow = { expense: Expense; amountCents: number; changed: boolean }
 export type InvoiceRow = { purchase: Purchase; installment: Installment }
 export type CardInvoice = { card: Card; month: string; closingDate: string; dueDate: string; totalCents: number; chargeCount: number; paid: boolean }
 export type ReceivableRow = { receivable: Receivable; installment: Installment; received: boolean }
-export type MonthSummary = { month: string; incomeCents: number; payableCents: number; balanceCents: number; receivableCents: number }
+/** `payableCents` = faturas (`invoicesCents`) + despesas mensais (`expensesCents`). */
+export type MonthSummary = {
+  month: string; incomeCents: number; invoicesCents: number; expensesCents: number; payableCents: number; balanceCents: number; receivableCents: number
+}
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
 
@@ -76,11 +80,50 @@ export function receivableTotals(month: string, receivables: Receivable[]) {
   return { totalCents, receivedCents, pendingCents: totalCents - receivedCents }
 }
 
-/** Saldo previsto = renda − soma das faturas dos cartões ativos. "A pagar" inclui faturas já pagas. */
+export const expenseActiveIn = (expense: Pick<Expense, 'startMonth' | 'endMonth'>, month: string) =>
+  expense.startMonth <= month && (expense.endMonth === null || expense.endMonth >= month)
+
+/** Valor da despesa no mês: o valor trocado só para aquele mês, ou o valor padrão. Fora da vigência, null. */
+export function expenseAmountIn(expense: Expense, month: string): number | null {
+  if (!expenseActiveIn(expense, month)) return null
+  return expense.overrides[month] ?? expense.amountCents
+}
+
+/** Despesas vigentes no mês, com o valor do mês. Ordem: categoria e título. */
+export function expenseRows(month: string, expenses: Expense[]): ExpenseRow[] {
+  return expenses.flatMap(expense => {
+    const amountCents = expenseAmountIn(expense, month)
+    return amountCents === null ? [] : [{ expense, amountCents, changed: month in expense.overrides }]
+  }).sort((a, b) => a.expense.category.localeCompare(b.expense.category, 'pt-BR') || a.expense.title.localeCompare(b.expense.title, 'pt-BR'))
+}
+
+export const expensesInMonth = (month: string, expenses: Expense[]) => sum(expenseRows(month, expenses).map(row => row.amountCents))
+
+/** Categorias já usadas, para sugerir no formulário. */
+export const expenseCategories = (expenses: Expense[]) =>
+  [...new Set(expenses.map(expense => expense.category))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+
+/** Saldo previsto = renda − (faturas dos cartões ativos + despesas mensais). "A pagar" inclui faturas já pagas. */
 export function monthSummary(month: string, data: FinanceData): MonthSummary {
   const incomeCents = incomeInMonth(month, data.incomes)
-  const payableCents = sum(cardInvoices(month, data).map(invoice => invoice.totalCents))
-  return { month, incomeCents, payableCents, balanceCents: incomeCents - payableCents, receivableCents: receivableTotals(month, data.receivables).totalCents }
+  const invoicesCents = sum(cardInvoices(month, data).map(invoice => invoice.totalCents))
+  const expensesCents = expensesInMonth(month, data.expenses)
+  const payableCents = invoicesCents + expensesCents
+  return {
+    month, incomeCents, invoicesCents, expensesCents, payableCents,
+    balanceCents: incomeCents - payableCents, receivableCents: receivableTotals(month, data.receivables).totalCents,
+  }
+}
+
+/**
+ * Mês que a tela abre por padrão: o mês atual, ou o primeiro mês seguinte que não foi marcado
+ * como concluído (novembro concluído → abre em dezembro).
+ */
+export function defaultMonth(today: string, closedMonths: string[]): string {
+  const closed = new Set(closedMonths)
+  let month = today
+  for (let guard = 0; closed.has(month) && guard < 1200; guard++) month = shiftCompetence(month, 1)
+  return month
 }
 
 export const forecast = (startMonth: string, data: FinanceData, months = 12): MonthSummary[] =>
@@ -109,6 +152,7 @@ export function incomeImpact(startMonth: string, data: Pick<FinanceData, 'cards'
 export type MonthBreakdown = {
   summary: MonthSummary
   incomes: Income[]
+  expenses: ExpenseRow[]
   invoices: (CardInvoice & { rows: InvoiceRow[] })[]
   receivables: ReceivableRow[]
 }
@@ -119,6 +163,7 @@ export function monthBreakdown(month: string, data: FinanceData): MonthBreakdown
     summary: monthSummary(month, data),
     incomes: data.incomes.filter(income => incomeActiveIn(income, month))
       .sort((a, b) => b.amountCents - a.amountCents || a.title.localeCompare(b.title, 'pt-BR')),
+    expenses: expenseRows(month, data.expenses),
     invoices: cardInvoices(month, data).map(invoice => ({ ...invoice, rows: invoiceRows(invoice.card.id, month, data.purchases) })),
     receivables: receivableRows(month, data.receivables),
   }

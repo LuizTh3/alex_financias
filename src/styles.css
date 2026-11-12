@@ -888,6 +888,40 @@
     text-transform: uppercase;
   }
 
+  /* Mês concluído na Visão geral */
+  .month-closed {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+  }
+
+  /* Despesas mensais: total por categoria */
+  .category-totals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .category-totals li {
+    display: flex;
+    align-items: baseline;
+    gap: .5rem;
+    padding: .45rem .8rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+    font-size: .85rem;
+  }
+
+  .category-totals span {
+    color: var(--muted-foreground);
+  }
+
+  .category-totals strong {
+    font-variant-numeric: tabular-nums;
+  }
+
   /* A receber na Visão geral */
   .receivable-card {
     display: flex;

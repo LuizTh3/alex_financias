@@ -34,6 +34,21 @@ export const incomeSchema = z.object({
   endMonth: competenceSchema.nullable(),
 }).strict().refine(value => value.endMonth === null || value.endMonth >= value.startMonth, { message: 'O fim não pode ser antes do início.', path: ['endMonth'] })
 
+/** Valor de um mês específico da despesa: 0 é permitido (ex.: mês sem cobrança). */
+const monthCents = z.number().int('Use centavos inteiros.').min(0, 'O valor não pode ser negativo.').max(MAX_TOTAL_CENTS, 'Valor acima do limite permitido.')
+export const MAX_EXPENSE_OVERRIDES = 240
+
+/** Despesa mensal recorrente (fora dos cartões). `overrides` troca o valor só de meses específicos. */
+export const expenseSchema = z.object({
+  title: text('o título da despesa'),
+  category: text('a categoria', 40),
+  amountCents: cents,
+  startMonth: competenceSchema,
+  endMonth: competenceSchema.nullable(),
+  overrides: z.record(competenceSchema, monthCents)
+    .refine(value => Object.keys(value).length <= MAX_EXPENSE_OVERRIDES, 'Valores mensais demais.').default({}),
+}).strict().refine(value => value.endMonth === null || value.endMonth >= value.startMonth, { message: 'O fim não pode ser antes do início.', path: ['endMonth'] })
+
 export const receivableSchema = z.object({
   title: text('o título'),
   totalCents: cents,
@@ -51,6 +66,10 @@ export type CardInput = z.infer<typeof cardSchema>
 export type PurchaseInput = z.infer<typeof purchaseSchema>
 export type IncomeInput = z.infer<typeof incomeSchema>
 export type ReceivableInput = z.infer<typeof receivableSchema>
+export type ExpenseInput = z.infer<typeof expenseSchema>
+export type Expense = ExpenseInput & { id: string }
+/** Documento `closedMonths/{YYYY-MM}`: existir significa mês marcado como concluído. */
+export type ClosedMonth = { id: string; month: string }
 
 export type Card = CardInput & { id: string; active: boolean }
 export type Purchase = PurchaseInput & { id: string }
